@@ -68,14 +68,18 @@ async function connectMetaMask() {
 
             document.getElementById("connectWalletBtn").innerText = "🦊 Connected";
             document.getElementById("walletAddressDisplay").innerText = `Wallet: ${userAccount.slice(0,6)}...${userAccount.slice(-4)}`;
-            alert("MetaMask Wallet Connected Successfully!");
+            console.log("MetaMask Connected:", userAccount);
         } catch (err) {
             console.error("User rejected wallet connection:", err);
+            alert("MetaMask connection request was cancelled.");
         }
     } else {
-        alert("MetaMask is not installed! Please install MetaMask extension to interact with Solidity Smart Contracts.");
+        if (confirm("MetaMask extension is not installed in your browser!\n\nDo you want to open metamask.io to install it? (Note: Donation & Reward campaigns work without MetaMask!)")) {
+            window.open("https://metamask.io/download/", "_blank");
+        }
     }
 }
+
 
 function showTab(tabId) {
     document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
