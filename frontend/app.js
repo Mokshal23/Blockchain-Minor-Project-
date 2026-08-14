@@ -56,6 +56,38 @@ window.addEventListener("DOMContentLoaded", async () => {
         console.log("Using default contract configuration.");
     }
 
+    // Auto-reconnect MetaMask on page load if already connected
+    if (window.ethereum) {
+        try {
+            const accounts = await window.ethereum.request({ method: "eth_accounts" });
+            if (accounts && accounts.length > 0) {
+                provider = new ethers.BrowserProvider(window.ethereum);
+                signer = await provider.getSigner();
+                userAccount = accounts[0];
+
+                document.getElementById("connectWalletBtn").innerText = "🦊 Connected";
+                document.getElementById("walletAddressDisplay").innerText = `Wallet: ${userAccount.slice(0,6)}...${userAccount.slice(-4)}`;
+                console.log("Auto-reconnected MetaMask account:", userAccount);
+            }
+        } catch (err) {
+            console.log("Auto-reconnect check skipped.");
+        }
+
+        // Listen for account changes in MetaMask extension
+        window.ethereum.on('accountsChanged', (accounts) => {
+            if (accounts.length > 0) {
+                userAccount = accounts[0];
+                document.getElementById("walletAddressDisplay").innerText = `Wallet: ${userAccount.slice(0,6)}...${userAccount.slice(-4)}`;
+                loadCampaigns();
+            } else {
+                userAccount = null;
+                signer = null;
+                document.getElementById("connectWalletBtn").innerText = "🦊 Connect MetaMask";
+                document.getElementById("walletAddressDisplay").innerText = "Wallet: Not Connected";
+            }
+        });
+    }
+
     loadCampaigns();
     checkBlockchainStatus();
 });
@@ -63,6 +95,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 async function connectMetaMask() {
     if (window.ethereum) {
         try {
+            // Request accounts or allow user to pick account
             await window.ethereum.request({
                 method: "wallet_requestPermissions",
                 params: [{ eth_accounts: {} }]
