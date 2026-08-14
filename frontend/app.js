@@ -69,7 +69,7 @@ window.addEventListener("DOMContentLoaded", async () => {
                 signer = await provider.getSigner();
                 userAccount = accounts[0];
 
-                document.getElementById("connectWalletBtn").innerText = "🦊 Connected";
+                document.getElementById("connectWalletBtn").innerText = "Connected";
                 document.getElementById("walletAddressDisplay").innerText = `Wallet: ${userAccount.slice(0,6)}...${userAccount.slice(-4)}`;
                 console.log("Auto-reconnected MetaMask account:", userAccount);
             }
@@ -85,7 +85,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             } else {
                 userAccount = null;
                 signer = null;
-                document.getElementById("connectWalletBtn").innerText = "🦊 Connect MetaMask";
+                document.getElementById("connectWalletBtn").innerText = "Connect MetaMask";
                 document.getElementById("walletAddressDisplay").innerText = "Wallet: Not Connected";
             }
         });
@@ -107,7 +107,7 @@ async function connectMetaMask() {
             signer = await provider.getSigner();
             userAccount = await signer.getAddress();
 
-            document.getElementById("connectWalletBtn").innerText = "🦊 Connected";
+            document.getElementById("connectWalletBtn").innerText = "Connected";
             document.getElementById("walletAddressDisplay").innerText = `Wallet: ${userAccount.slice(0,6)}...${userAccount.slice(-4)}`;
             console.log("MetaMask Connected:", userAccount);
             loadCampaigns();
@@ -190,7 +190,6 @@ async function loadCampaigns() {
                 const cContract = new ethers.Contract(item.campaignAddress, CAMPAIGN_ABI, readProvider);
                 const goal = ethers.formatEther(await cContract.fundingGoal());
                 const raised = ethers.formatEther(await cContract.currentAmount());
-
 
                 let m0Info = null;
                 let userContribAmt = "0";
@@ -296,14 +295,14 @@ async function loadCampaigns() {
         if (c.engine === "Python") {
             moneyTrackerHtml = `
                 <div class="money-tracker-box tracker-python">
-                    <strong>🏦 Where is your money?</strong><br>
+                    <strong>Where is your money?</strong><br>
                     Held in <strong>Platform Escrow Vault</strong>. Released to startup owner only when Central Admin approves milestone evidence.
                 </div>
             `;
         } else {
             moneyTrackerHtml = `
                 <div class="money-tracker-box tracker-solidity">
-                    <strong>🔐 Where is your money?</strong><br>
+                    <strong>Where is your money?</strong><br>
                     Locked in <strong>Smart Contract Escrow (${c.contract_address.slice(0,6)}...${c.contract_address.slice(-4)})</strong>. Released automatically ONLY when Contributor Majority (>50%) votes YES.
                 </div>
             `;
@@ -312,13 +311,13 @@ async function loadCampaigns() {
         let voterEligibilityHtml = "";
         if (c.engine === "Solidity") {
             if (!userAccount) {
-                voterEligibilityHtml = `<div class="voter-badge voter-none">🔒 Connect MetaMask to view voting rights</div>`;
+                voterEligibilityHtml = `<div class="voter-badge voter-none">Connect MetaMask to view voting rights</div>`;
             } else if (c.userHasVoted) {
-                voterEligibilityHtml = `<div class="voter-badge voter-voted">🗳️ Already Voted on Milestone 1</div>`;
+                voterEligibilityHtml = `<div class="voter-badge voter-voted">Already Voted on Milestone 1</div>`;
             } else if (c.userContribAmt > 0) {
-                voterEligibilityHtml = `<div class="voter-badge voter-eligible">✅ Eligible Voter (Weight: ${c.userContribAmt} ETH)</div>`;
+                voterEligibilityHtml = `<div class="voter-badge voter-eligible">Eligible Voter (Weight: ${c.userContribAmt} ETH)</div>`;
             } else {
-                voterEligibilityHtml = `<div class="voter-badge voter-none">⚠️ Contribute first to unlock voting rights</div>`;
+                voterEligibilityHtml = `<div class="voter-badge voter-none">Contribute first to unlock voting rights</div>`;
             }
         }
 
@@ -333,13 +332,13 @@ async function loadCampaigns() {
             };
 
             const statusText = m.isExecuted 
-                ? "<span class='tag-green'>✅ Funds Released (Majority Approved)</span>" 
-                : m.isApproved ? "<span class='tag-green'> Approved (Executing Release...)</span>"
-                : "<span style='color:#d97706;'>⏳ Voting Active (Requires >50% Majority)</span>";
+                ? "<span class='tag-green'>Funds Released (Majority Approved)</span>" 
+                : m.isApproved ? "<span class='tag-green'>Approved (Executing Release...)</span>"
+                : "<span style='color:#d97706;'>Voting Active (Requires >50% Majority)</span>";
 
             milestoneHtml = `
                 <div class="milestone-box">
-                    <h4>🗳️ Milestone 1 Voting Breakdown</h4>
+                    <h4>Milestone 1 Voting Breakdown</h4>
                     <div class="milestone-desc">${m.description}</div>
                     <div style="font-size:0.8rem; margin-bottom:0.4rem;">
                         Status: <strong>${statusText}</strong>
@@ -353,10 +352,10 @@ async function loadCampaigns() {
                     ${!m.isExecuted ? `
                         <div class="vote-controls" style="margin-top:0.6rem;">
                             <button class="btn-vote-yes" onclick="voteOnSolidityMilestone('${c.contract_address}', 0, true)">
-                                👍 Vote YES
+                                Vote YES
                             </button>
                             <button class="btn-vote-no" onclick="voteOnSolidityMilestone('${c.contract_address}', 0, false)">
-                                👎 Vote NO
+                                Vote NO
                             </button>
                         </div>
                     ` : ""}
@@ -369,17 +368,17 @@ async function loadCampaigns() {
             const lInfo = c.lendingDetails || { totalRepaidPool: "0", claimable: "0", withdrawn: "0" };
             lendingControlsHtml = `
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:0.8rem; border-radius:6px; margin-top:0.8rem; font-size:0.82rem;">
-                    <strong>📊 Repayment Tracker:</strong><br>
+                    <strong>Repayment Tracker:</strong><br>
                     • Repayment Pool Deposited by Borrower: <strong>${lInfo.totalRepaidPool} ETH</strong><br>
                     • Your Claimable Repayment: <strong style="color:#10b981;">${lInfo.claimable} ETH</strong><br>
                     • Already Withdrawn: <strong>${lInfo.withdrawn} ETH</strong>
                 </div>
                 <div style="display:flex; gap:0.5rem; margin-top:0.6rem;">
                     <button class="btn-secondary" style="flex:1; font-size:0.8rem;" onclick="depositLendingRepayment('${c.contract_address}')">
-                        💰 Deposit Repayment
+                        Deposit Repayment
                     </button>
                     <button class="btn-secondary" style="flex:1; font-size:0.8rem;" onclick="withdrawLendingRepayment('${c.contract_address}')">
-                        💸 Pull Repayment (${lInfo.claimable} ETH)
+                        Pull Repayment (${lInfo.claimable} ETH)
                     </button>
                 </div>
             `;
@@ -389,17 +388,17 @@ async function loadCampaigns() {
         if (c.funding_type === "Reward") {
             rewardTierHtml = `
                 <div style="font-size:0.8rem; background:#eff6ff; padding:0.5rem; border-radius:4px; margin-top:0.6rem;">
-                    🎁 <strong>Reward Tiers:</strong><br>
-                    • &lt; $500: Bronze Tier 🥉<br>
-                    • $500 - $999: Silver Tier 🥈<br>
-                    • $1000+: Gold Tier 🥇
+                    <strong>Reward Tiers:</strong><br>
+                    • &lt; $500: Bronze Tier<br>
+                    • $500 - $999: Silver Tier<br>
+                    • $1000+: Gold Tier
                 </div>
             `;
         }
 
         const deleteBtnHtml = `
             <button class="btn-delete" onclick="deleteCampaign('${c.id}', '${c.engine}')">
-                🗑️ Delete Campaign
+                Delete Campaign
             </button>
         `;
 
@@ -509,7 +508,7 @@ async function handleCreateCampaign(e) {
         }
     } else {
         if (!signer) {
-            alert("Equity & Lending campaigns run on Solidity smart contracts.\n\nPlease click '🦊 Connect MetaMask' at top right first!");
+            alert("Equity & Lending campaigns run on Solidity smart contracts.\n\nPlease click 'Connect MetaMask' at top right first!");
             await connectMetaMask();
             if (!signer) return;
         }
@@ -577,7 +576,7 @@ async function contributeInline(campaignId, engine) {
         }
     } else {
         if (!signer) {
-            alert("Please click '🦊 Connect MetaMask' at top right first!");
+            alert("Please click 'Connect MetaMask' at top right first!");
             await connectMetaMask();
             if (!signer) return;
         }
@@ -622,7 +621,6 @@ async function deleteCampaign(campaignId, engine) {
             alert("Error connecting to Python backend.");
         }
     } else {
-        // Solidity Engine deletion: save to localStorage to hide from UI
         try {
             let deletedSolidity = JSON.parse(localStorage.getItem("deletedSolidityCampaigns") || "[]");
             if (!deletedSolidity.includes(campaignId)) {
@@ -637,10 +635,9 @@ async function deleteCampaign(campaignId, engine) {
     }
 }
 
-
 async function voteOnSolidityMilestone(contractAddress, milestoneId, approveBool) {
     if (!signer) {
-        alert("Please click '🦊 Connect MetaMask' at top right to vote on smart contract milestones!");
+        alert("Please click 'Connect MetaMask' at top right to vote on smart contract milestones!");
         await connectMetaMask();
         if (!signer) return;
     }
@@ -673,17 +670,17 @@ async function voteOnSolidityMilestone(contractAddress, milestoneId, approveBool
         }
 
         if (parseFloat(contribAmt) <= 0) {
-            alert("🔒 Voting Locked:\n\nYou must contribute to this campaign FIRST before you can vote!\n\nEnter an amount in the input box above and click 'Contribute Now'.");
+            alert("Voting Locked:\n\nYou must contribute to this campaign FIRST before you can vote!\n\nEnter an amount in the input box above and click 'Contribute Now'.");
             return;
         }
 
         if (alreadyVoted) {
-            alert("🗳️ You have already cast your vote on Milestone 1!");
+            alert("You have already cast your vote on Milestone 1!");
             return;
         }
 
         const tx = await cContract.voteMilestone(milestoneId, approveBool);
-        alert(`Submitting Vote (${approveBool ? 'YES 👍' : 'NO 👎'})... Please confirm in MetaMask.`);
+        alert(`Submitting Vote (${approveBool ? 'YES' : 'NO'})... Please confirm in MetaMask.`);
         await tx.wait();
 
         alert("Vote registered on-chain! If YES votes passed >50% majority threshold, milestone funds were automatically released!");
@@ -868,7 +865,6 @@ async function triggerAdminTamper() {
         if (resp.ok) {
             const result = await resp.json();
 
-            // Display rich visual comparison box inside Admin Panel
             const viewer = document.getElementById("blockchainViewer");
             let tamperBox = document.getElementById("tamperVisualBox");
             if (!tamperBox) {
@@ -885,7 +881,7 @@ async function triggerAdminTamper() {
             tamperBox.style.marginBottom = "1rem";
 
             tamperBox.innerHTML = `
-                <h4 style="color:#dc2626; margin-top:0;">🚨 ADMIN TAMPER EXECUTED (CENTRAL DB ALTERATION)</h4>
+                <h4 style="color:#dc2626; margin-top:0;">ADMIN TAMPER EXECUTED (CENTRAL DB ALTERATION)</h4>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; font-size:0.85rem;">
                     <div style="background:#ffffff; padding:0.8rem; border-radius:4px; border:1px solid #cbd5e1;">
                         <strong>BEFORE TAMPERING (Original Block #${result.block_index}):</strong>
@@ -897,8 +893,8 @@ async function triggerAdminTamper() {
                     </div>
                 </div>
                 <div style="background:#f0fdf4; border:1px solid #86efac; color:#166534; padding:0.8rem; border-radius:4px; margin-top:0.8rem; font-size:0.85rem;">
-                    <strong>✅ Chain Validation Result:</strong> <span class="tag-green">VALID (is_valid: true)</span><br>
-                    <strong>💡 Thesis Conclusion:</strong> ${result.thesis_lesson}
+                    <strong>Chain Validation Result:</strong> <span class="tag-green">VALID (is_valid: true)</span><br>
+                    <strong>Thesis Conclusion:</strong> ${result.thesis_lesson}
                 </div>
             `;
 
@@ -913,4 +909,3 @@ async function triggerAdminTamper() {
         alert("Could not reach Python API server.");
     }
 }
-
