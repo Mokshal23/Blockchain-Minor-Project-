@@ -8,7 +8,11 @@
  * =============================================================================
  */
 
-const PYTHON_API_URL = "http://127.0.0.1:5000/api";
+// Auto-detect API URL for local vs Vercel deployment
+const PYTHON_API_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:")
+    ? "http://127.0.0.1:5000/api"
+    : "/api";
+
 
 // Hardhat Localhost Contract Addresses & ABI
 let factoryContractAddress = ""; // Loaded dynamically from contract_address.json

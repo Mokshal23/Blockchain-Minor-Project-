@@ -13,6 +13,7 @@ lacks real immutability.
 =============================================================================
 """
 
+import os
 import hashlib
 import json
 import sqlite3
@@ -25,7 +26,9 @@ app = Flask(__name__)
 # Enable CORS so our frontend HTML/JS can communicate with this API
 CORS(app)
 
-DB_FILE = "database.db"
+# Place SQLite database in /tmp when running on Vercel read-only filesystem
+DB_FILE = "/tmp/database.db" if os.environ.get("VERCEL") else "database.db"
+
 
 # =============================================================================
 # 1. DATABASE INITIALIZATION
