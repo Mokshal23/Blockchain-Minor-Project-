@@ -37,7 +37,8 @@ const CAMPAIGN_ABI = [
     "function getMilestoneCount() view returns (uint256)",
     "function depositRepayment() payable",
     "function withdrawRepayment()",
-    "function getVoterStatus(uint256 _milestoneId, address _voter) view returns (uint256 contributionAmount, bool voted)"
+    "function getVoterStatus(uint256 _milestoneId, address _voter) view returns (uint256 contributionAmount, bool voted)",
+    "function getLendingDetails(address _lender) view returns (uint256 totalRepaid, uint256 principal, uint256 withdrawn, uint256 claimable)"
 ];
 
 // =============================================================================
@@ -209,6 +210,23 @@ async function loadCampaigns() {
                     console.log("Could not read contract milestone info.");
                 }
 
+                // Read Lending specific details if model is Lending
+                let lendingDetails = null;
+                if (item.modelType === "Lending") {
+                    try {
+                        const lAddr = userAccount || ethers.ZeroAddress;
+                        const lData = await cContract.getLendingDetails(lAddr);
+                        lendingDetails = {
+                            totalRepaidPool: ethers.formatEther(lData.totalRepaid),
+                            principal: ethers.formatEther(lData.principal),
+                            withdrawn: ethers.formatEther(lData.withdrawn),
+                            claimable: ethers.formatEther(lData.claimable)
+                        };
+                    } catch (e) {
+                        console.log("Could not read lending details");
+                    }
+                }
+
                 campaigns.push({
                     id: item.campaignAddress,
                     title: item.title,
@@ -221,7 +239,8 @@ async function loadCampaigns() {
                     contract_address: item.campaignAddress,
                     milestone0: m0Info,
                     userContribAmt: parseFloat(userContribAmt),
-                    userHasVoted: userHasVoted
+                    userHasVoted: userHasVoted,
+                    lendingDetails: lendingDetails
                 });
             }
         } catch (err) {
@@ -246,7 +265,7 @@ async function loadCampaigns() {
     }
 
     grid.innerHTML = "";
-    campaigns.forEach((c, idx) => {
+    campaigns.forEach((c) => {
         const percent = Math.min(100, Math.round((c.current_amount / c.funding_goal) * 100));
         const engineClass = c.engine === "Python" ? "badge-python" : "badge-solidity";
 
@@ -287,14 +306,19 @@ async function loadCampaigns() {
 
         // Milestone voting box HTML for Solidity campaigns
         let milestoneHtml = "";
-        if (c.engine === "Solidity" && c.milestone0) {
-            const m = c.milestone0;
+        if (c.engine === "Solidity") {
+            const m = c.milestone0 || {
+                description: "Milestone 1: Prototype & Setup (50% Funds)",
+                votesFor: "0.0",
+                votesAgainst: "0.0",
+                isApproved: false,
+                isExecuted: false
+            };
+
             const statusText = m.isExecuted 
                 ? "<span class='tag-green'>✅ Funds Released (Majority Approved)</span>" 
                 : m.isApproved ? "<span class='tag-green'> Approved (Executing Release...)</span>"
                 : "<span style='color:#d97706;'>⏳ Voting Active (Requires >50% Majority)</span>";
-
-            const canVote = c.userContribAmt > 0 && !c.userHasVoted && !m.isExecuted;
 
             milestoneHtml = `
                 <div class="milestone-box">
@@ -311,10 +335,10 @@ async function loadCampaigns() {
 
                     ${!m.isExecuted ? `
                         <div class="vote-controls" style="margin-top:0.6rem;">
-                            <button class="btn-vote-yes" ${!canVote ? 'disabled' : ''} onclick="voteOnSolidityMilestone('${c.contract_address}', 0, true)">
+                            <button class="btn-vote-yes" onclick="voteOnSolidityMilestone('${c.contract_address}', 0, true)">
                                 👍 Vote YES
                             </button>
-                            <button class="btn-vote-no" ${!canVote ? 'disabled' : ''} onclick="voteOnSolidityMilestone('${c.contract_address}', 0, false)">
+                            <button class="btn-vote-no" onclick="voteOnSolidityMilestone('${c.contract_address}', 0, false)">
                                 👎 Vote NO
                             </button>
                         </div>
@@ -323,16 +347,23 @@ async function loadCampaigns() {
             `;
         }
 
-        // Extra controls for Lending model
+        // Extra controls & repayment tracking for Lending model
         let lendingControlsHtml = "";
         if (c.funding_type === "Lending") {
+            const lInfo = c.lendingDetails || { totalRepaidPool: "0", claimable: "0", withdrawn: "0" };
             lendingControlsHtml = `
-                <div style="display:flex; gap:0.5rem; margin-top:0.4rem;">
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:0.8rem; border-radius:6px; margin-top:0.8rem; font-size:0.82rem;">
+                    <strong>📊 Repayment Tracker:</strong><br>
+                    • Repayment Pool Deposited by Borrower: <strong>${lInfo.totalRepaidPool} ETH</strong><br>
+                    • Your Claimable Repayment: <strong style="color:#10b981;">${lInfo.claimable} ETH</strong><br>
+                    • Already Withdrawn: <strong>${lInfo.withdrawn} ETH</strong>
+                </div>
+                <div style="display:flex; gap:0.5rem; margin-top:0.6rem;">
                     <button class="btn-secondary" style="flex:1; font-size:0.8rem;" onclick="depositLendingRepayment('${c.contract_address}')">
                         💰 Deposit Repayment
                     </button>
                     <button class="btn-secondary" style="flex:1; font-size:0.8rem;" onclick="withdrawLendingRepayment('${c.contract_address}')">
-                        💸 Pull Repayment
+                        💸 Pull Repayment (${lInfo.claimable} ETH)
                     </button>
                 </div>
             `;
@@ -535,7 +566,7 @@ async function contributeInline(campaignId, engine) {
         }
     } else {
         if (!signer) {
-            alert("Please connect MetaMask wallet first!");
+            alert("Please click '🦊 Connect MetaMask' at top right first!");
             await connectMetaMask();
             if (!signer) return;
         }
@@ -552,7 +583,7 @@ async function contributeInline(campaignId, engine) {
             alert("Sending contribution transaction... Please confirm in MetaMask.");
             await tx.wait();
 
-            alert("Contribution confirmed on Ethereum blockchain!");
+            alert("Contribution confirmed on Ethereum blockchain! Raised amount & voting weight updated.");
             loadCampaigns();
         } catch (err) {
             console.error("Solidity contribution failed:", err);
@@ -593,6 +624,23 @@ async function voteOnSolidityMilestone(contractAddress, milestoneId, approveBool
         signer = await provider.getSigner();
 
         const cContract = new ethers.Contract(contractAddress, CAMPAIGN_ABI, signer);
+        
+        // Check contribution before voting
+        const userAddr = await signer.getAddress();
+        const vStatus = await cContract.getVoterStatus(milestoneId, userAddr);
+        const contribAmt = ethers.formatEther(vStatus[0]);
+        const alreadyVoted = vStatus[1];
+
+        if (parseFloat(contribAmt) <= 0) {
+            alert("🔒 Voting Locked:\n\nYou must contribute to this campaign FIRST before you can vote!\n\nEnter an amount in the box above and click 'Contribute Now'.");
+            return;
+        }
+
+        if (alreadyVoted) {
+            alert("🗳️ You have already cast your vote on Milestone 1!");
+            return;
+        }
+
         const tx = await cContract.voteMilestone(milestoneId, approveBool);
         alert(`Submitting Vote (${approveBool ? 'YES 👍' : 'NO 👎'})... Please confirm in MetaMask.`);
         await tx.wait();
@@ -601,7 +649,7 @@ async function voteOnSolidityMilestone(contractAddress, milestoneId, approveBool
         loadCampaigns();
     } catch (err) {
         console.error("Voting error:", err);
-        alert("Voting failed. Make sure you have contributed to this campaign and haven't already voted!");
+        alert("Voting transaction failed or was cancelled in MetaMask.");
     }
 }
 
@@ -644,13 +692,23 @@ async function withdrawLendingRepayment(contractAddress) {
         signer = await provider.getSigner();
 
         const cContract = new ethers.Contract(contractAddress, CAMPAIGN_ABI, signer);
+        const userAddr = await signer.getAddress();
+        const lData = await cContract.getLendingDetails(userAddr);
+        const claimable = ethers.formatEther(lData[3]);
+
+        if (parseFloat(claimable) <= 0) {
+            alert("No repayments available to withdraw right now.\n\nMake sure: 1) You are a lender who contributed to this campaign, and 2) Borrower has deposited a repayment pool!");
+            return;
+        }
+
         const tx = await cContract.withdrawRepayment();
-        alert("Pulling lender repayment... Confirm in MetaMask.");
+        alert(`Pulling ${claimable} ETH repayment... Please confirm in MetaMask.`);
         await tx.wait();
-        alert("Repayment pulled successfully to your wallet!");
+        alert(`SUCCESS! Withdrew ${claimable} ETH repayment directly into your wallet balance!`);
         loadCampaigns();
     } catch (err) {
-        alert("Withdrawal failed. Make sure you are a lender and repayments are available.");
+        console.error("Withdrawal error:", err);
+        alert("Withdrawal failed or was cancelled.");
     }
 }
 

@@ -5,14 +5,6 @@ pragma solidity ^0.8.20;
  * =============================================================================
  * Dual-Engine Crowdfunding Platform - Lending Campaign Smart Contract
  * =============================================================================
- * This contract handles Lending (debt-based) crowdfunding on Ethereum.
- * Key Features:
- *  1. OpenZeppelin ReentrancyGuard for safe ETH transfers.
- *  2. Borrower repayment deposit (`depositRepayment()`).
- *  3. Pull-based withdrawal (`withdrawRepayment()`): Each lender withdraws their
- *     pro-rata share of principal + interest (pull pattern prevents reentrancy bugs).
- *  4. Contributor milestone voting for milestone releases.
- * =============================================================================
  */
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -68,7 +60,6 @@ contract LendingCampaign is ReentrancyGuard {
         interestRatePercent = _interestRatePercent;
         isClosed = false;
 
-        // Auto initialize Milestone 0 so lenders can vote immediately
         milestones.push(Milestone({
             id: 0,
             description: "Milestone 1: Equipment Acquisition & Setup (50% Funds)",
@@ -151,24 +142,16 @@ contract LendingCampaign is ReentrancyGuard {
         emit MilestoneApproved(_milestoneId, releaseAmount);
     }
 
-    /**
-     * @dev Borrower deposits repayment funds into the contract pool.
-     */
     function depositRepayment() external payable nonReentrant {
         require(msg.value > 0, "Repayment must be > 0");
         totalRepaidPool += msg.value;
         emit RepaymentDeposited(msg.sender, msg.value);
     }
 
-    /**
-     * @dev Lenders PULL their pro-rata share of repayment pool.
-     * Prevents reentrancy attacks by calculating entitled share and updating state before transfer.
-     */
     function withdrawRepayment() external nonReentrant {
         require(lenderPrincipal[msg.sender] > 0, "Not a lender");
 
         uint256 principal = lenderPrincipal[msg.sender];
-        
         uint256 maxShareFromPool = (totalRepaidPool * principal) / currentAmount;
         uint256 alreadyWithdrawn = lenderWithdrawn[msg.sender];
 
@@ -184,7 +167,29 @@ contract LendingCampaign is ReentrancyGuard {
     }
 
     function getVoterStatus(uint256 _milestoneId, address _voter) external view returns (uint256 contributionAmount, bool voted) {
+        if (_milestoneId >= milestones.length) {
+            return (lenderPrincipal[_voter], false);
+        }
         return (lenderPrincipal[_voter], hasVoted[_milestoneId][_voter]);
+    }
+
+    function getLendingDetails(address _lender) external view returns (
+        uint256 totalRepaid,
+        uint256 principal,
+        uint256 withdrawn,
+        uint256 claimable
+    ) {
+        totalRepaid = totalRepaidPool;
+        principal = lenderPrincipal[_lender];
+        withdrawn = lenderWithdrawn[_lender];
+        
+        if (currentAmount > 0 && principal > 0) {
+            uint256 maxShare = (totalRepaidPool * principal) / currentAmount;
+            if (maxShare > withdrawn) {
+                claimable = maxShare - withdrawn;
+            }
+        }
+        return (totalRepaid, principal, withdrawn, claimable);
     }
 
     function getMilestoneCount() external view returns (uint256) {
