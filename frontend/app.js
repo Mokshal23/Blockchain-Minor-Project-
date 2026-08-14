@@ -14,11 +14,12 @@ const PYTHON_API_URL = (window.location.hostname === "localhost" || window.locat
     : "/api";
 
 
-// Hardhat Localhost Contract Addresses & ABI
-let factoryContractAddress = ""; // Loaded dynamically from contract_address.json
+// Hardhat Localhost Contract Addresses & ABI (Default 1st Contract Address on Hardhat Node)
+let factoryContractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 let userAccount = null;
 let provider = null;
 let signer = null;
+
 
 // Minimal Contract ABIs
 const FACTORY_ABI = [
