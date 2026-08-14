@@ -183,9 +183,10 @@ contract EquityCampaign is ReentrancyGuard {
         emit RefundIssued(msg.sender, refundAmount);
     }
 
-    /**
-     * @dev Helper to get total number of milestones
-     */
+    function getVoterStatus(uint256 _milestoneId, address _voter) external view returns (uint256 contributionAmount, bool voted) {
+        return (contributions[_voter], hasVoted[_milestoneId][_voter]);
+    }
+
     function getMilestoneCount() external view returns (uint256) {
         return milestones.length;
     }

@@ -3,7 +3,7 @@
  * Dual-Engine Crowdfunding Platform - Frontend Logic (app.js)
  * =============================================================================
  * Optimized for Vercel Deployment & Local Testing:
- *   1. Python REST API (/api) for Donation & Reward models (Works 24/7 on Vercel)
+ *   1. Python REST API (/api) for Donation & Reward models
  *   2. MetaMask / Ethers.js for Solidity Smart Contracts (Equity & Lending models)
  * =============================================================================
  */
@@ -36,7 +36,8 @@ const CAMPAIGN_ABI = [
     "function milestones(uint256) view returns (uint256 id, string description, uint256 releasePercent, uint256 votesFor, uint256 votesAgainst, bool isApproved, bool isExecuted)",
     "function getMilestoneCount() view returns (uint256)",
     "function depositRepayment() payable",
-    "function withdrawRepayment()"
+    "function withdrawRepayment()",
+    "function getVoterStatus(uint256 _milestoneId, address _voter) view returns (uint256 contributionAmount, bool voted)"
 ];
 
 // =============================================================================
@@ -73,7 +74,6 @@ window.addEventListener("DOMContentLoaded", async () => {
             console.log("Auto-reconnect check skipped.");
         }
 
-        // Listen for account changes in MetaMask extension
         window.ethereum.on('accountsChanged', (accounts) => {
             if (accounts.length > 0) {
                 userAccount = accounts[0];
@@ -95,7 +95,6 @@ window.addEventListener("DOMContentLoaded", async () => {
 async function connectMetaMask() {
     if (window.ethereum) {
         try {
-            // Request accounts or allow user to pick account
             await window.ethereum.request({
                 method: "wallet_requestPermissions",
                 params: [{ eth_accounts: {} }]
@@ -158,7 +157,7 @@ async function loadCampaigns() {
     const grid = document.getElementById("campaignListGrid");
     let campaigns = [];
 
-    // 1. Fetch Python Campaigns from REST API (Works on Vercel)
+    // 1. Fetch Python Campaigns from REST API
     try {
         const resp = await fetch(`${PYTHON_API_URL}/campaigns`);
         if (resp.ok) {
@@ -183,6 +182,9 @@ async function loadCampaigns() {
 
                 // Read Milestone 0
                 let m0Info = null;
+                let userContribAmt = "0";
+                let userHasVoted = false;
+
                 try {
                     const mCount = await cContract.getMilestoneCount();
                     if (mCount > 0n) {
@@ -197,8 +199,14 @@ async function loadCampaigns() {
                             isExecuted: mData.isExecuted
                         };
                     }
+
+                    if (userAccount) {
+                        const vStatus = await cContract.getVoterStatus(0, userAccount);
+                        userContribAmt = ethers.formatEther(vStatus[0]);
+                        userHasVoted = vStatus[1];
+                    }
                 } catch (e) {
-                    console.log("Could not read contract milestone");
+                    console.log("Could not read contract milestone info.");
                 }
 
                 campaigns.push({
@@ -211,7 +219,9 @@ async function loadCampaigns() {
                     funding_goal: parseFloat(goal),
                     current_amount: parseFloat(raised),
                     contract_address: item.campaignAddress,
-                    milestone0: m0Info
+                    milestone0: m0Info,
+                    userContribAmt: parseFloat(userContribAmt),
+                    userHasVoted: userHasVoted
                 });
             }
         } catch (err) {
@@ -236,21 +246,55 @@ async function loadCampaigns() {
     }
 
     grid.innerHTML = "";
-    campaigns.forEach(c => {
+    campaigns.forEach((c, idx) => {
         const percent = Math.min(100, Math.round((c.current_amount / c.funding_goal) * 100));
         const engineClass = c.engine === "Python" ? "badge-python" : "badge-solidity";
 
         const card = document.createElement("div");
         card.className = "card";
 
+        // Money tracker / Fund flow explanation box
+        let moneyTrackerHtml = "";
+        if (c.engine === "Python") {
+            moneyTrackerHtml = `
+                <div class="money-tracker-box tracker-python">
+                    <strong>🏦 Where is your money?</strong><br>
+                    Held in <strong>Platform Escrow Vault</strong>. Released to startup owner only when Central Admin approves milestone evidence.
+                </div>
+            `;
+        } else {
+            moneyTrackerHtml = `
+                <div class="money-tracker-box tracker-solidity">
+                    <strong>🔐 Where is your money?</strong><br>
+                    Locked in <strong>Smart Contract Escrow (${c.contract_address.slice(0,6)}...${c.contract_address.slice(-4)})</strong>. Released automatically ONLY when Contributor Majority (>50%) votes YES.
+                </div>
+            `;
+        }
+
+        // Voter Eligibility Badge for Solidity Engine
+        let voterEligibilityHtml = "";
+        if (c.engine === "Solidity") {
+            if (!userAccount) {
+                voterEligibilityHtml = `<div class="voter-badge voter-none">🔒 Connect MetaMask to view voting rights</div>`;
+            } else if (c.userHasVoted) {
+                voterEligibilityHtml = `<div class="voter-badge voter-voted">🗳️ Already Voted on Milestone 1</div>`;
+            } else if (c.userContribAmt > 0) {
+                voterEligibilityHtml = `<div class="voter-badge voter-eligible">✅ Eligible Voter (Weight: ${c.userContribAmt} ETH)</div>`;
+            } else {
+                voterEligibilityHtml = `<div class="voter-badge voter-none">⚠️ Contribute first to unlock voting rights</div>`;
+            }
+        }
+
         // Milestone voting box HTML for Solidity campaigns
         let milestoneHtml = "";
         if (c.engine === "Solidity" && c.milestone0) {
             const m = c.milestone0;
             const statusText = m.isExecuted 
-                ? "<span class='tag-green'>✅ Funds Auto-Released (Majority Approved)</span>" 
+                ? "<span class='tag-green'>✅ Funds Released (Majority Approved)</span>" 
                 : m.isApproved ? "<span class='tag-green'> Approved (Executing Release...)</span>"
-                : "<span>⏳ Voting Active (Requires >50% Majority)</span>";
+                : "<span style='color:#d97706;'>⏳ Voting Active (Requires >50% Majority)</span>";
+
+            const canVote = c.userContribAmt > 0 && !c.userHasVoted && !m.isExecuted;
 
             milestoneHtml = `
                 <div class="milestone-box">
@@ -259,16 +303,18 @@ async function loadCampaigns() {
                     <div style="font-size:0.8rem; margin-bottom:0.4rem;">
                         Status: <strong>${statusText}</strong>
                     </div>
-                    <div style="font-size:0.8rem; color:#64748b;">
-                        YES Votes: <strong>${m.votesFor} ETH</strong> | NO Votes: <strong>${m.votesAgainst} ETH</strong>
+                    <div style="font-size:0.8rem; color:#64748b; margin-bottom:0.5rem;">
+                        YES: <strong>${m.votesFor} ETH</strong> | NO: <strong>${m.votesAgainst} ETH</strong>
                     </div>
 
+                    ${voterEligibilityHtml}
+
                     ${!m.isExecuted ? `
-                        <div class="vote-controls">
-                            <button class="btn-vote-yes" onclick="voteOnSolidityMilestone('${c.contract_address}', 0, true)">
+                        <div class="vote-controls" style="margin-top:0.6rem;">
+                            <button class="btn-vote-yes" ${!canVote ? 'disabled' : ''} onclick="voteOnSolidityMilestone('${c.contract_address}', 0, true)">
                                 👍 Vote YES
                             </button>
-                            <button class="btn-vote-no" onclick="voteOnSolidityMilestone('${c.contract_address}', 0, false)">
+                            <button class="btn-vote-no" ${!canVote ? 'disabled' : ''} onclick="voteOnSolidityMilestone('${c.contract_address}', 0, false)">
                                 👎 Vote NO
                             </button>
                         </div>
@@ -305,6 +351,16 @@ async function loadCampaigns() {
             `;
         }
 
+        // Delete button for Python campaigns
+        let deleteBtnHtml = "";
+        if (c.engine === "Python") {
+            deleteBtnHtml = `
+                <button class="btn-delete" onclick="deleteCampaign(${c.id})">
+                    🗑️ Delete Campaign
+                </button>
+            `;
+        }
+
         card.innerHTML = `
             <div class="card-header">
                 <h3>${c.title}</h3>
@@ -318,21 +374,27 @@ async function loadCampaigns() {
             </div>
             <p><strong>${c.current_amount}</strong> of ${c.funding_goal} ETH raised (${percent}%)</p>
 
+            ${moneyTrackerHtml}
             ${rewardTierHtml}
 
-            <button class="btn-primary" onclick="contributePrompt('${c.id}', '${c.engine}')">
-                Contribute to Campaign
-            </button>
+            <!-- In-Site Inline Contribution Form -->
+            <div class="inline-contrib-form">
+                <input type="number" step="0.01" id="contribInput_${c.id}" value="1.0" placeholder="Amount (ETH)">
+                <button class="btn-contrib-inline" onclick="contributeInline('${c.id}', '${c.engine}')">
+                    Contribute Now
+                </button>
+            </div>
 
             ${milestoneHtml}
             ${lendingControlsHtml}
+            ${deleteBtnHtml}
         `;
         grid.appendChild(card);
     });
 }
 
 // =============================================================================
-// 3. CREATE & FUND CAMPAIGN LOGIC
+// 3. CREATE, CONTRIBUTE & DELETE CAMPAIGN LOGIC
 // =============================================================================
 
 async function ensureHardhatNetwork() {
@@ -440,9 +502,15 @@ async function handleCreateCampaign(e) {
     }
 }
 
-async function contributePrompt(campaignId, engine) {
-    const amountStr = prompt("Enter contribution amount (in ETH / USD):", "1.0");
-    if (!amountStr || isNaN(amountStr) || parseFloat(amountStr) <= 0) return;
+async function contributeInline(campaignId, engine) {
+    const inputEl = document.getElementById(`contribInput_${campaignId}`);
+    if (!inputEl) return;
+
+    const amountStr = inputEl.value;
+    if (!amountStr || isNaN(amountStr) || parseFloat(amountStr) <= 0) {
+        alert("Please enter a valid contribution amount greater than 0.");
+        return;
+    }
 
     if (engine === "Python") {
         try {
@@ -457,8 +525,10 @@ async function contributePrompt(campaignId, engine) {
 
             if (resp.ok) {
                 const resData = await resp.json();
-                alert(`Contribution Successful!\nBlock #${resData.block_index} appended to SHA-256 ledger.\nReward Tier: ${resData.reward_tier}`);
+                alert(`Contribution Successful!\nBlock #${resData.block_index} appended to Python SHA-256 ledger.\nReward Tier: ${resData.reward_tier}`);
                 loadCampaigns();
+            } else {
+                alert("Contribution failed.");
             }
         } catch (err) {
             alert("Failed to send contribution to Python backend.");
@@ -486,8 +556,27 @@ async function contributePrompt(campaignId, engine) {
             loadCampaigns();
         } catch (err) {
             console.error("Solidity contribution failed:", err);
-            alert("Transaction failed.");
+            alert("Transaction failed or cancelled.");
         }
+    }
+}
+
+async function deleteCampaign(campaignId) {
+    if (!confirm(`Are you sure you want to delete Campaign #${campaignId}?`)) return;
+
+    try {
+        const resp = await fetch(`${PYTHON_API_URL}/campaigns/${campaignId}`, {
+            method: "DELETE"
+        });
+
+        if (resp.ok) {
+            alert("Campaign deleted successfully.");
+            loadCampaigns();
+        } else {
+            alert("Failed to delete campaign.");
+        }
+    } catch (err) {
+        alert("Error connecting to Python backend.");
     }
 }
 
@@ -620,6 +709,7 @@ async function adminApproveMilestone(campaignId, milestoneId) {
             alert("Admin Approved Milestone! Block added to Python SHA-256 ledger.");
             loadAdminMilestones();
             loadBlockchainLedger();
+            loadCampaigns();
         }
     } catch (err) {
         alert("Failed to approve milestone.");

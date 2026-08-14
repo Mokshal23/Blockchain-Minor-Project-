@@ -183,6 +183,10 @@ contract LendingCampaign is ReentrancyGuard {
         emit RepaymentWithdrawn(msg.sender, claimable);
     }
 
+    function getVoterStatus(uint256 _milestoneId, address _voter) external view returns (uint256 contributionAmount, bool voted) {
+        return (lenderPrincipal[_voter], hasVoted[_milestoneId][_voter]);
+    }
+
     function getMilestoneCount() external view returns (uint256) {
         return milestones.length;
     }

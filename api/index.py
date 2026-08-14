@@ -240,7 +240,34 @@ def create_campaign():
 
     return jsonify({"message": "Campaign created successfully", "campaign_id": campaign_id}), 201
 
+@app.route("/api/campaigns/<int:campaign_id>", methods=["DELETE"])
+def delete_campaign(campaign_id):
+    init_db()
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM campaigns WHERE id = ?", (campaign_id,))
+    campaign = cursor.fetchone()
+    if not campaign:
+        conn.close()
+        return jsonify({"error": "Campaign not found"}), 404
+
+    cursor.execute("DELETE FROM milestones WHERE campaign_id = ?", (campaign_id,))
+    cursor.execute("DELETE FROM contributions WHERE campaign_id = ?", (campaign_id,))
+    cursor.execute("DELETE FROM campaigns WHERE id = ?", (campaign_id,))
+    conn.commit()
+    conn.close()
+
+    add_block_to_ledger({
+        "event": "CAMPAIGN_DELETED",
+        "campaign_id": campaign_id,
+        "title": campaign["title"]
+    })
+
+    return jsonify({"message": f"Campaign #{campaign_id} deleted successfully."})
+
 @app.route("/api/campaigns/<int:campaign_id>/contribute", methods=["POST"])
+
 def contribute(campaign_id):
     init_db()
     data = request.json
