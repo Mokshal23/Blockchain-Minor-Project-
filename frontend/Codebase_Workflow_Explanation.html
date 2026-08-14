@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codebase & Workflow Technical Guide - Dual-Engine Crowdfunding</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: #0f172a;
+            max-width: 950px;
+            margin: 0 auto;
+            padding: 2.5rem;
+            background-color: #ffffff;
+        }
+
+        @media print {
+            body { padding: 0; max-width: 100%; }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+        }
+
+        .header {
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .header h1 {
+            color: #0f172a;
+            font-size: 2.2rem;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .header p {
+            color: #64748b;
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        .print-btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            float: right;
+            margin-top: -3.5rem;
+        }
+
+        h2 {
+            color: #1e293b;
+            border-left: 5px solid #2563eb;
+            padding-left: 0.8rem;
+            font-size: 1.5rem;
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        h3 {
+            color: #334155;
+            font-size: 1.2rem;
+            margin-top: 1.5rem;
+        }
+
+        p, li {
+            font-size: 0.98rem;
+            color: #334155;
+            text-align: justify;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 0.8rem;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .code-block {
+            background: #0f172a;
+            color: #38bdf8;
+            padding: 1.2rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .folder-tree {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+        }
+
+        .highlight-box {
+            background: #eff6ff;
+            border: 1px solid #93c5fd;
+            color: #1e40af;
+            padding: 1.2rem;
+            border-radius: 6px;
+            margin: 1.5rem 0;
+        }
+    </style>
+</head>
+<body>
+
+    <button class="print-btn no-print" onclick="window.print()">Print / Save PDF Guide</button>
+
+    <div class="header">
+        <h1>Codebase & Workflow Technical Guide</h1>
+        <p>Complete Architecture, File Structure, & Function Implementation Breakdown</p>
+    </div>
+
+    <h2>1. Codebase Directory Structure Overview</h2>
+    <p>
+        The project is structured into three main layers: Python REST API (Backend/Serverless), Solidity Smart Contracts (EVM Engine), and Unified Vanilla Frontend (Client):
+    </p>
+
+    <div class="folder-tree">
+minor project/
+├── api/
+│   └── index.py               # Vercel Serverless Entry Point (Python Flask API + SQLite + SHA-256)
+├── backend/
+│   └── app.py                 # Local Flask Server (Identical API logic for local dev)
+├── contracts/
+│   ├── contracts/
+│   │   ├── CrowdfundingFactory.sol # Factory contract for deploying Equity/Lending instances
+│   │   ├── EquityCampaign.sol      # Equity campaign contract (OpenZeppelin + Voting)
+│   │   └── LendingCampaign.sol     # Lending campaign contract (Debt pool + Pull withdrawals)
+│   ├── test/
+│   │   └── Crowdfunding.test.js    # Hardhat automated unit tests
+│   ├── scripts/
+│   │   └── deploy.js               # Hardhat deployment script
+│   └── hardhat.config.js           # Hardhat config (Optimizer enabled, unlimited contract size)
+├── frontend/
+│   ├── index.html              # Main HTML interface (Tabs, Cards, Engine Guides)
+│   ├── style.css               # Clean responsive CSS styling
+│   ├── app.js                  # Ethers.js v6 Web3 + REST API integration
+│   ├── User_Manual.html        # Printable First-Time User Manual
+│   ├── Project_Report.html     # Printable Academic Project Report
+│   └── Codebase_Workflow_Explanation.html # This Technical Guide
+├── requirements.txt            # Root dependencies for Vercel Python serverless
+├── vercel.json                 # Vercel routing & serverless build config
+├── User_Manual.html            # Root User Manual copy
+├── Project_Report.html         # Root Project Report copy
+└── Codebase_Workflow_Explanation.html # Root Technical Guide copy
+    </div>
+
+    <h2>2. Development Workflow (How We Built It Step-by-Step)</h2>
+
+    <h3>Phase 1: Python Engine & Custom SHA-256 Ledger</h3>
+    <ul>
+        <li>Built Flask API endpoints (<code>/api/campaigns</code>, <code>/api/campaigns/:id/contribute</code>, <code>/api/blockchain</code>).</li>
+        <li>Implemented custom <code>Block</code> class with <code>hashlib.sha256</code> hashing chaining block index, timestamp, JSON payload, and previous block hash.</li>
+        <li>Configured Vercel serverless integration using <code>/tmp/database.db</code> because Vercel serverless filesystems are read-only.</li>
+    </ul>
+
+    <h3>Phase 2: Solidity Smart Contracts & EVM Engine</h3>
+    <ul>
+        <li>Implemented <code>EquityCampaign.sol</code> and <code>LendingCampaign.sol</code> inheriting OpenZeppelin <code>ReentrancyGuard</code>.</li>
+        <li>Auto-initialized Milestone 0 in contract constructors so campaigns are immediately ready for contributor voting upon deployment.</li>
+        <li>Implemented pull-based debt withdrawals (<code>withdrawRepayment()</code>) in <code>LendingCampaign.sol</code> to prevent reentrancy attacks.</li>
+    </ul>
+
+    <h3>Phase 3: Hardhat Optimization & Testing</h3>
+    <ul>
+        <li>Configured <code>hardhat.config.js</code> with Solidity optimizer (<code>runs: 200</code>) and <code>allowUnlimitedContractSize: true</code>.</li>
+        <li>Wrote automated unit tests in <code>contracts/test/Crowdfunding.test.js</code> (3/3 passing).</li>
+    </ul>
+
+    <h3>Phase 4: Unified Frontend Integration</h3>
+    <ul>
+        <li>Integrated Ethers.js v6 for Web3 provider interaction.</li>
+        <li>Built inline input fields (`[ 1.0 ] ETH` `[ Contribute Now ]`) directly on campaign cards.</li>
+        <li>Implemented auto MetaMask reconnection on page refresh and account change listeners.</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h2>3. Core Code Snippets & Implementation Analysis</h2>
+
+    <h3>3.1 Python SHA-256 Block Hashing Logic (`api/index.py`)</h3>
+    <div class="code-block">
+class Block:
+    def __init__(self, index, timestamp, data, previous_hash):
+        self.index = index
+        self.timestamp = timestamp
+        self.data = data
+        self.previous_hash = previous_hash
+        self.hash = self.calculate_hash()
+
+    def calculate_hash(self):
+        block_string = f"{self.index}{self.timestamp}{json.dumps(self.data)}{self.previous_hash}"
+        return hashlib.sha256(block_string.encode()).hexdigest()
+    </div>
+
+    <h3>3.2 Solidity Milestone Voting & Auto-Release (`EquityCampaign.sol`)</h3>
+    <div class="code-block">
+function voteMilestone(uint256 _milestoneId, bool _approve) external {
+    require(_milestoneId < milestones.length, "Invalid milestone ID");
+    require(contributions[msg.sender] > 0, "Only contributors can vote");
+    require(!hasVoted[_milestoneId][msg.sender], "Already voted");
+
+    Milestone storage m = milestones[_milestoneId];
+    require(!m.isExecuted, "Milestone already executed");
+
+    uint256 voteWeight = contributions[msg.sender];
+    hasVoted[_milestoneId][msg.sender] = true;
+
+    if (_approve) {
+        m.votesFor += voteWeight;
+    } else {
+        m.votesAgainst += voteWeight;
+    }
+
+    // Auto-release funds if YES votes exceed 50% majority threshold
+    if (m.votesFor > (currentAmount / 2) && !m.isApproved) {
+        m.isApproved = true;
+        _executeMilestoneRelease(_milestoneId);
+    }
+}
+    </div>
+
+    <h3>3.3 Solidity Pull Repayment Pattern (`LendingCampaign.sol`)</h3>
+    <div class="code-block">
+function withdrawRepayment() external nonReentrant {
+    require(lenderPrincipal[msg.sender] > 0, "Not a lender");
+
+    uint256 principal = lenderPrincipal[msg.sender];
+    uint256 maxShareFromPool = (totalRepaidPool * principal) / currentAmount;
+    uint256 alreadyWithdrawn = lenderWithdrawn[msg.sender];
+
+    require(maxShareFromPool > alreadyWithdrawn, "No new repayments available");
+    uint256 claimable = maxShareFromPool - alreadyWithdrawn;
+
+    lenderWithdrawn[msg.sender] += claimable; // Update state first
+
+    (bool success, ) = msg.sender.call{value: claimable}(""); // Transfer ETH
+    require(success, "Withdrawal transfer failed");
+}
+    </div>
+
+    <h2>4. End-to-End System Workflow Summary</h2>
+    <div class="highlight-box">
+        <strong>Dual Engine Dispatching:</strong>
+        <ol>
+            <li>When creating a campaign, the model type dictates the engine route (Donation/Reward $\rightarrow$ Python REST API; Equity/Lending $\rightarrow$ Solidity Factory Contract).</li>
+            <li>On the frontend, <code>app.js</code> queries both the Python API and Ethereum EVM simultaneously and aggregates all campaign cards onto a unified grid.</li>
+            <li>When a user interacts with a card, the frontend dispatches to the corresponding engine seamlessly!</li>
+        </ol>
+    </div>
+
+</body>
+</html>
