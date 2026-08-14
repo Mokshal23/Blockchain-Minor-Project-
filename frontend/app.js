@@ -263,9 +263,17 @@ async function handleCreateCampaign(e) {
         }
 
         try {
+            // Check network before sending transaction
+            const net = await provider.getNetwork();
+            if (net.chainId !== 31337n && net.chainId !== 1337n) {
+                alert("Network Mismatch:\nYour MetaMask is currently set to Sepolia or Mainnet.\n\nPlease switch your MetaMask network to 'Hardhat Localhost' (http://127.0.0.1:8545) at top left of MetaMask!");
+                return;
+            }
+
             const factory = new ethers.Contract(factoryContractAddress, FACTORY_ABI, signer);
             let tx;
             const goalWei = ethers.parseEther(goal.toString());
+
 
             if (model === "Equity") {
                 tx = await factory.createEquityCampaign(title, description, goalWei, parseInt(duration));
