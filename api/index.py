@@ -391,15 +391,24 @@ def tamper_blockchain_endpoint():
 
     if len(rows) < 2:
         conn.close()
-        return jsonify({"error": "Need at least 2 blocks to demonstrate tampering. Please create a campaign and make a contribution first!"}), 400
+        return jsonify({"error": "Need at least 2 blocks to demonstrate tampering. Please create a Donation/Reward campaign and make a contribution first!"}), 400
 
     target_block = dict(rows[1])
     target_data = json.loads(target_block["data_json"])
 
-    original_data_summary = str(target_data)
+    original_data_summary = json.dumps(target_data, indent=2)
     target_data["tampered"] = True
-    target_data["amount"] = target_data.get("amount", 100) * 10
+    
+    # Inflate amount by 10x
+    if "amount" in target_data:
+        target_data["amount"] = target_data["amount"] * 10
+        # Update actual campaign record in DB to visually alter totals on platform
+        if "campaign_id" in target_data:
+            cursor.execute("UPDATE campaigns SET current_amount = current_amount + ? WHERE id = ?", 
+                           (target_data["amount"], target_data["campaign_id"]))
+    
     target_data["tampered_note"] = "Altered by Central Admin secretly"
+    tampered_data_summary = json.dumps(target_data, indent=2)
 
     prev_hash = target_block["previous_hash"]
 
@@ -423,15 +432,17 @@ def tamper_blockchain_endpoint():
     is_valid, val_msg = validate_blockchain()
 
     return jsonify({
-        "message": "ADMIN TAMPER SUCCESSFUL! Block #1 was modified and downstream hashes recalculated.",
+        "message": "ADMIN TAMPER SUCCESSFUL!",
+        "block_index": target_block["block_index"],
         "original_data": original_data_summary,
-        "tampered_data": str(target_data),
+        "tampered_data": tampered_data_summary,
         "chain_validation_after_tampering": {
             "is_valid": is_valid,
             "status": val_msg
         },
         "thesis_lesson": "Notice that the chain STILL VALIDATES as 'True' because one central admin holds all DB keys and recalculated all hashes. Real decentralization (Solidity engine) prevents this!"
     })
+
 
 if __name__ == "__main__":
     app.run()

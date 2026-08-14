@@ -861,20 +861,56 @@ async function loadBlockchainLedger() {
 }
 
 async function triggerAdminTamper() {
-    if (!confirm("Are you sure you want to run the Admin Tamper Script? This will modify a past block in SQLite and recalculate downstream SHA-256 hashes.")) return;
+    if (!confirm("Are you sure you want to run the Admin Tamper Script?\n\nThis will secretly modify a historical block in SQLite and recalculate downstream SHA-256 hashes to demonstrate central vulnerability.")) return;
 
     try {
         const resp = await fetch(`${PYTHON_API_URL}/tamper`, { method: "POST" });
         if (resp.ok) {
             const result = await resp.json();
-            alert(`TAMPER SUCCESSFUL!\n\n${result.message}\n\nNotice that the chain STILL VALIDATES as 'True' because the admin recalculated all hashes!`);
+
+            // Display rich visual comparison box inside Admin Panel
+            const viewer = document.getElementById("blockchainViewer");
+            let tamperBox = document.getElementById("tamperVisualBox");
+            if (!tamperBox) {
+                tamperBox = document.createElement("div");
+                tamperBox.id = "tamperVisualBox";
+                viewer.parentNode.insertBefore(tamperBox, viewer);
+            }
+
+            tamperBox.style.display = "block";
+            tamperBox.style.background = "#fff5f5";
+            tamperBox.style.border = "2px solid #ef4444";
+            tamperBox.style.borderRadius = "8px";
+            tamperBox.style.padding = "1rem";
+            tamperBox.style.marginBottom = "1rem";
+
+            tamperBox.innerHTML = `
+                <h4 style="color:#dc2626; margin-top:0;">🚨 ADMIN TAMPER EXECUTED (CENTRAL DB ALTERATION)</h4>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; font-size:0.85rem;">
+                    <div style="background:#ffffff; padding:0.8rem; border-radius:4px; border:1px solid #cbd5e1;">
+                        <strong>BEFORE TAMPERING (Original Block #${result.block_index}):</strong>
+                        <pre style="color:#0f172a; margin:0.4rem 0 0 0; white-space:pre-wrap;">${result.original_data}</pre>
+                    </div>
+                    <div style="background:#fef2f2; padding:0.8rem; border-radius:4px; border:1px solid #fca5a5;">
+                        <strong style="color:#dc2626;">AFTER TAMPERING (Altered Block #${result.block_index}):</strong>
+                        <pre style="color:#991b1b; margin:0.4rem 0 0 0; white-space:pre-wrap;">${result.tampered_data}</pre>
+                    </div>
+                </div>
+                <div style="background:#f0fdf4; border:1px solid #86efac; color:#166534; padding:0.8rem; border-radius:4px; margin-top:0.8rem; font-size:0.85rem;">
+                    <strong>✅ Chain Validation Result:</strong> <span class="tag-green">VALID (is_valid: true)</span><br>
+                    <strong>💡 Thesis Conclusion:</strong> ${result.thesis_lesson}
+                </div>
+            `;
+
             loadBlockchainLedger();
             checkBlockchainStatus();
+            loadCampaigns();
         } else {
             const errData = await resp.json();
-            alert(`Tamper Failed: ${errData.error}`);
+            alert(`Tamper Info: ${errData.error}`);
         }
     } catch (err) {
         alert("Could not reach Python API server.");
     }
 }
+
