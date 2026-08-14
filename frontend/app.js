@@ -881,14 +881,14 @@ async function triggerAdminTamper() {
             tamperBox.style.marginBottom = "1rem";
 
             tamperBox.innerHTML = `
-                <h4 style="color:#dc2626; margin-top:0;">ADMIN TAMPER EXECUTED (CENTRAL DB ALTERATION)</h4>
+                <h4 style="color:#dc2626; margin-top:0;">ADMIN TAMPER EXECUTED (CONTRIBUTION ENTRY DELETED & TOTAL RESET)</h4>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; font-size:0.85rem;">
                     <div style="background:#ffffff; padding:0.8rem; border-radius:4px; border:1px solid #cbd5e1;">
                         <strong>BEFORE TAMPERING (Original Block #${result.block_index}):</strong>
                         <pre style="color:#0f172a; margin:0.4rem 0 0 0; white-space:pre-wrap;">${result.original_data}</pre>
                     </div>
                     <div style="background:#fef2f2; padding:0.8rem; border-radius:4px; border:1px solid #fca5a5;">
-                        <strong style="color:#dc2626;">AFTER TAMPERING (Altered Block #${result.block_index}):</strong>
+                        <strong style="color:#dc2626;">AFTER TAMPERING (Entry Reset to $0 by Admin):</strong>
                         <pre style="color:#991b1b; margin:0.4rem 0 0 0; white-space:pre-wrap;">${result.tampered_data}</pre>
                     </div>
                 </div>
@@ -897,6 +897,7 @@ async function triggerAdminTamper() {
                     <strong>Thesis Conclusion:</strong> ${result.thesis_lesson}
                 </div>
             `;
+
 
             loadBlockchainLedger();
             checkBlockchainStatus();

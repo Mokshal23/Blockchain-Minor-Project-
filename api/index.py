@@ -393,28 +393,43 @@ def tamper_blockchain_endpoint():
         conn.close()
         return jsonify({"error": "Need at least 2 blocks to demonstrate tampering. Please create a Donation/Reward campaign and make a contribution first!"}), 400
 
-    target_block = dict(rows[1])
-    target_data = json.loads(target_block["data_json"])
+    # Locate a contribution block to tamper with
+    target_block = None
+    target_idx = 1
+    for r in rows[1:]:
+        b_dict = dict(r)
+        d_json = json.loads(b_dict["data_json"])
+        if d_json.get("event") == "CONTRIBUTION_RECEIVED" or "amount" in d_json:
+            target_block = b_dict
+            target_idx = b_dict["block_index"]
+            break
 
+    if not target_block:
+        target_block = dict(rows[1])
+        target_idx = 1
+
+    target_data = json.loads(target_block["data_json"])
     original_data_summary = json.dumps(target_data, indent=2)
+
+    original_amount = target_data.get("amount", 25.0)
+
+    # TAMPER ACTION: Secretly remove the contribution entry and reset amount to $0
     target_data["tampered"] = True
-    
-    # Inflate amount by 10x
-    if "amount" in target_data:
-        target_data["amount"] = target_data["amount"] * 10
-        # Update actual campaign record in DB to visually alter totals on platform
-        if "campaign_id" in target_data:
-            cursor.execute("UPDATE campaigns SET current_amount = current_amount + ? WHERE id = ?", 
-                           (target_data["amount"], target_data["campaign_id"]))
-    
-    target_data["tampered_note"] = "Altered by Central Admin secretly"
+    target_data["amount"] = 0.0
+    target_data["contributor_name"] = "[DELETED BY ADMIN]"
+    target_data["tampered_note"] = f"Original ${original_amount} contribution entry removed and reset to $0 secretly by Central Admin"
     tampered_data_summary = json.dumps(target_data, indent=2)
+
+    # Reset campaign current_amount in DB to reflect the deleted contribution
+    if "campaign_id" in target_data:
+        cursor.execute("UPDATE campaigns SET current_amount = MAX(0, current_amount - ?) WHERE id = ?",
+                       (original_amount, target_data["campaign_id"]))
 
     prev_hash = target_block["previous_hash"]
 
     for i in range(1, len(rows)):
         r = dict(rows[i])
-        b_data = target_data if i == 1 else json.loads(r["data_json"])
+        b_data = target_data if r["block_index"] == target_idx else json.loads(r["data_json"])
         
         new_b = Block(r["block_index"], r["timestamp"], b_data, prev_hash)
         
@@ -432,16 +447,18 @@ def tamper_blockchain_endpoint():
     is_valid, val_msg = validate_blockchain()
 
     return jsonify({
-        "message": "ADMIN TAMPER SUCCESSFUL!",
-        "block_index": target_block["block_index"],
+        "message": f"ADMIN TAMPER EXECUTED: Removed ${original_amount} contribution entry and reset campaign total!",
+        "block_index": target_idx,
+        "removed_amount": original_amount,
         "original_data": original_data_summary,
         "tampered_data": tampered_data_summary,
         "chain_validation_after_tampering": {
             "is_valid": is_valid,
             "status": val_msg
         },
-        "thesis_lesson": "Notice that the chain STILL VALIDATES as 'True' because one central admin holds all DB keys and recalculated all hashes. Real decentralization (Solidity engine) prevents this!"
+        "thesis_lesson": f"Notice that the ${original_amount} contribution entry was deleted and reset to $0, yet the chain STILL VALIDATES as 'True' because one central admin recalculated all hashes. Real decentralization (Solidity engine) prevents this!"
     })
+
 
 
 if __name__ == "__main__":

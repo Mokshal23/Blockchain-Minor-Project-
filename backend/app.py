@@ -433,12 +433,6 @@ def validate_chain_endpoint():
 
 @app.route("/api/tamper", methods=["POST"])
 def tamper_blockchain_endpoint():
-    """
-    ADMIN TAMPER SCRIPT DEMO:
-    Modifies a past contribution block in SQLite, recalculates downstream SHA-256 hashes,
-    and saves them. The chain validates successfully despite history being altered!
-    This proves that central control makes SHA-256 hash chaining vulnerable to single-party tampering.
-    """
     conn = get_db()
     cursor = conn.cursor()
 
@@ -447,27 +441,43 @@ def tamper_blockchain_endpoint():
 
     if len(rows) < 2:
         conn.close()
-        return jsonify({"error": "Need at least 2 blocks to demonstrate tampering. Please create a campaign and make a contribution first!"}), 400
+        return jsonify({"error": "Need at least 2 blocks to demonstrate tampering. Please create a Donation/Reward campaign and make a contribution first!"}), 400
 
-    # Pick Block #1 (the first contribution or campaign block after Genesis)
-    target_block = dict(rows[1])
+    target_block = None
+    target_idx = 1
+    for r in rows[1:]:
+        b_dict = dict(r)
+        d_json = json.loads(b_dict["data_json"])
+        if d_json.get("event") == "CONTRIBUTION_RECEIVED" or "amount" in d_json:
+            target_block = b_dict
+            target_idx = b_dict["block_index"]
+            break
+
+    if not target_block:
+        target_block = dict(rows[1])
+        target_idx = 1
+
     target_data = json.loads(target_block["data_json"])
+    original_data_summary = json.dumps(target_data, indent=2)
 
-    # Alter data (e.g. inflate contribution amount or change description)
-    original_data_summary = str(target_data)
+    original_amount = target_data.get("amount", 25.0)
+
     target_data["tampered"] = True
-    target_data["amount"] = target_data.get("amount", 100) * 10  # 10x the amount!
-    target_data["tampered_note"] = "Altered by Central Admin secretly"
+    target_data["amount"] = 0.0
+    target_data["contributor_name"] = "[DELETED BY ADMIN]"
+    target_data["tampered_note"] = f"Original ${original_amount} contribution entry removed and reset to $0 secretly by Central Admin"
+    tampered_data_summary = json.dumps(target_data, indent=2)
 
-    # Re-calculate hashes for target block and all downstream blocks
-    updated_rows = []
+    if "campaign_id" in target_data:
+        cursor.execute("UPDATE campaigns SET current_amount = MAX(0, current_amount - ?) WHERE id = ?",
+                       (original_amount, target_data["campaign_id"]))
+
     prev_hash = target_block["previous_hash"]
 
     for i in range(1, len(rows)):
         r = dict(rows[i])
-        b_data = target_data if i == 1 else json.loads(r["data_json"])
+        b_data = target_data if r["block_index"] == target_idx else json.loads(r["data_json"])
         
-        # Calculate new hash with tampered data
         new_b = Block(r["block_index"], r["timestamp"], b_data, prev_hash)
         
         cursor.execute("""
@@ -481,19 +491,21 @@ def tamper_blockchain_endpoint():
     conn.commit()
     conn.close()
 
-    # Run validation to prove chain still passes validation
     is_valid, val_msg = validate_blockchain()
 
     return jsonify({
-        "message": "ADMIN TAMPER SUCCESSFUL! Block #1 was modified and downstream hashes recalculated.",
+        "message": f"ADMIN TAMPER EXECUTED: Removed ${original_amount} contribution entry and reset campaign total!",
+        "block_index": target_idx,
+        "removed_amount": original_amount,
         "original_data": original_data_summary,
-        "tampered_data": str(target_data),
+        "tampered_data": tampered_data_summary,
         "chain_validation_after_tampering": {
             "is_valid": is_valid,
             "status": val_msg
         },
-        "thesis_lesson": "Notice that the chain STILL VALIDATES as 'True' because one central admin holds all DB keys and recalculated all hashes. Real decentralization (Solidity engine) prevents this!"
+        "thesis_lesson": f"Notice that the ${original_amount} contribution entry was deleted and reset to $0, yet the chain STILL VALIDATES as 'True' because one central admin recalculated all hashes. Real decentralization (Solidity engine) prevents this!"
     })
+
 
 # =============================================================================
 # MAIN ENTRY POINT
