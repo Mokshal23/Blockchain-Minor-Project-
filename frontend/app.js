@@ -37,6 +37,8 @@ const CAMPAIGN_ABI = [
     "function getMilestoneCount() view returns (uint256)",
     "function depositRepayment() payable",
     "function withdrawRepayment()",
+    "function contributions(address) view returns (uint256)",
+    "function lenderPrincipal(address) view returns (uint256)",
     "function getVoterStatus(uint256 _milestoneId, address _voter) view returns (uint256 contributionAmount, bool voted)",
     "function getLendingDetails(address _lender) view returns (uint256 totalRepaid, uint256 principal, uint256 withdrawn, uint256 claimable)"
 ];
@@ -181,7 +183,6 @@ async function loadCampaigns() {
                 const goal = ethers.formatEther(await cContract.fundingGoal());
                 const raised = ethers.formatEther(await cContract.currentAmount());
 
-                // Read Milestone 0
                 let m0Info = null;
                 let userContribAmt = "0";
                 let userHasVoted = false;
@@ -202,15 +203,26 @@ async function loadCampaigns() {
                     }
 
                     if (userAccount) {
-                        const vStatus = await cContract.getVoterStatus(0, userAccount);
-                        userContribAmt = ethers.formatEther(vStatus[0]);
-                        userHasVoted = vStatus[1];
+                        try {
+                            const vStatus = await cContract.getVoterStatus(0, userAccount);
+                            userContribAmt = ethers.formatEther(vStatus[0]);
+                            userHasVoted = vStatus[1];
+                        } catch (e1) {
+                            try {
+                                const cVal = await cContract.contributions(userAccount);
+                                userContribAmt = ethers.formatEther(cVal);
+                            } catch (e2) {
+                                try {
+                                    const lVal = await cContract.lenderPrincipal(userAccount);
+                                    userContribAmt = ethers.formatEther(lVal);
+                                } catch (e3) {}
+                            }
+                        }
                     }
                 } catch (e) {
                     console.log("Could not read contract milestone info.");
                 }
 
-                // Read Lending specific details if model is Lending
                 let lendingDetails = null;
                 if (item.modelType === "Lending") {
                     try {
@@ -248,7 +260,6 @@ async function loadCampaigns() {
         }
     }
 
-    // Filter campaigns based on UI dropdown
     const filter = document.getElementById("modelFilter").value;
     if (filter !== "ALL") {
         campaigns = campaigns.filter(c => c.funding_type === filter);
@@ -272,7 +283,6 @@ async function loadCampaigns() {
         const card = document.createElement("div");
         card.className = "card";
 
-        // Money tracker / Fund flow explanation box
         let moneyTrackerHtml = "";
         if (c.engine === "Python") {
             moneyTrackerHtml = `
@@ -290,7 +300,6 @@ async function loadCampaigns() {
             `;
         }
 
-        // Voter Eligibility Badge for Solidity Engine
         let voterEligibilityHtml = "";
         if (c.engine === "Solidity") {
             if (!userAccount) {
@@ -304,7 +313,6 @@ async function loadCampaigns() {
             }
         }
 
-        // Milestone voting box HTML for Solidity campaigns
         let milestoneHtml = "";
         if (c.engine === "Solidity") {
             const m = c.milestone0 || {
@@ -347,7 +355,6 @@ async function loadCampaigns() {
             `;
         }
 
-        // Extra controls & repayment tracking for Lending model
         let lendingControlsHtml = "";
         if (c.funding_type === "Lending") {
             const lInfo = c.lendingDetails || { totalRepaidPool: "0", claimable: "0", withdrawn: "0" };
@@ -369,7 +376,6 @@ async function loadCampaigns() {
             `;
         }
 
-        // Reward tier preview for Reward model
         let rewardTierHtml = "";
         if (c.funding_type === "Reward") {
             rewardTierHtml = `
@@ -382,7 +388,6 @@ async function loadCampaigns() {
             `;
         }
 
-        // Delete button for Python campaigns
         let deleteBtnHtml = "";
         if (c.engine === "Python") {
             deleteBtnHtml = `
@@ -624,15 +629,29 @@ async function voteOnSolidityMilestone(contractAddress, milestoneId, approveBool
         signer = await provider.getSigner();
 
         const cContract = new ethers.Contract(contractAddress, CAMPAIGN_ABI, signer);
-        
-        // Check contribution before voting
         const userAddr = await signer.getAddress();
-        const vStatus = await cContract.getVoterStatus(milestoneId, userAddr);
-        const contribAmt = ethers.formatEther(vStatus[0]);
-        const alreadyVoted = vStatus[1];
+        
+        let contribAmt = "0";
+        let alreadyVoted = false;
+
+        try {
+            const vStatus = await cContract.getVoterStatus(milestoneId, userAddr);
+            contribAmt = ethers.formatEther(vStatus[0]);
+            alreadyVoted = vStatus[1];
+        } catch (e) {
+            try {
+                const cVal = await cContract.contributions(userAddr);
+                contribAmt = ethers.formatEther(cVal);
+            } catch (err2) {
+                try {
+                    const lVal = await cContract.lenderPrincipal(userAddr);
+                    contribAmt = ethers.formatEther(lVal);
+                } catch (err3) {}
+            }
+        }
 
         if (parseFloat(contribAmt) <= 0) {
-            alert("🔒 Voting Locked:\n\nYou must contribute to this campaign FIRST before you can vote!\n\nEnter an amount in the box above and click 'Contribute Now'.");
+            alert("🔒 Voting Locked:\n\nYou must contribute to this campaign FIRST before you can vote!\n\nEnter an amount in the input box above and click 'Contribute Now'.");
             return;
         }
 
@@ -649,7 +668,8 @@ async function voteOnSolidityMilestone(contractAddress, milestoneId, approveBool
         loadCampaigns();
     } catch (err) {
         console.error("Voting error:", err);
-        alert("Voting transaction failed or was cancelled in MetaMask.");
+        const errReason = err.reason || err.message || "Transaction failed";
+        alert(`Voting error: ${errReason}`);
     }
 }
 
@@ -693,22 +713,24 @@ async function withdrawLendingRepayment(contractAddress) {
 
         const cContract = new ethers.Contract(contractAddress, CAMPAIGN_ABI, signer);
         const userAddr = await signer.getAddress();
-        const lData = await cContract.getLendingDetails(userAddr);
-        const claimable = ethers.formatEther(lData[3]);
 
-        if (parseFloat(claimable) <= 0) {
-            alert("No repayments available to withdraw right now.\n\nMake sure: 1) You are a lender who contributed to this campaign, and 2) Borrower has deposited a repayment pool!");
-            return;
+        let claimable = "0";
+        try {
+            const lData = await cContract.getLendingDetails(userAddr);
+            claimable = ethers.formatEther(lData[3]);
+        } catch (e) {
+            console.log("Could not fetch lending details");
         }
 
         const tx = await cContract.withdrawRepayment();
-        alert(`Pulling ${claimable} ETH repayment... Please confirm in MetaMask.`);
+        alert("Pulling lender repayment... Please confirm in MetaMask.");
         await tx.wait();
-        alert(`SUCCESS! Withdrew ${claimable} ETH repayment directly into your wallet balance!`);
+        alert("SUCCESS! Withdrew repayment directly into your wallet balance!");
         loadCampaigns();
     } catch (err) {
         console.error("Withdrawal error:", err);
-        alert("Withdrawal failed or was cancelled.");
+        const reason = err.reason || err.message || "No repayments available or transaction cancelled.";
+        alert(`Withdrawal info: ${reason}`);
     }
 }
 
