@@ -1,24 +1,26 @@
 @echo off
+title Dual-Engine Platform Launcher
 echo =========================================================
 echo Starting Dual-Engine Blockchain Crowdfunding Platform
 echo =========================================================
 
-echo Starting Python Flask Backend...
-start "Python Backend" cmd /k "cd backend && python app.py"
+cd /d "%~dp0backend"
+echo [1/3] Launching Python Flask Backend Server...
+start "Python Backend Server" cmd /k "python app.py"
 
-echo Starting Hardhat Local Ethereum Blockchain...
-start "Hardhat Ethereum Node" cmd /k "cd contracts && .\node_modules\.bin\hardhat node"
+cd /d "%~dp0contracts"
+echo [2/3] Launching Hardhat Local Ethereum Node...
+start "Hardhat Ethereum Node" cmd /k "..\node_modules\.bin\hardhat node"
 
-echo Waiting 5 seconds for nodes to initialize...
-timeout /t 5 /nobreak > nul
+echo [3/3] Waiting 6 seconds for local blockchain to initialize...
+timeout /t 6 /nobreak
 
-echo Deploying Smart Contracts to Localhost...
-cd contracts
-.\node_modules\.bin\hardhat run scripts/deploy.js --network localhost
-cd ..
+echo Deploying Smart Contracts...
+cd /d "%~dp0contracts"
+call node_modules\.bin\hardhat run scripts/deploy.js --network localhost
 
 echo =========================================================
-echo All services launched successfully!
-echo Opening frontend in your web browser...
+echo All services are running! Opening frontend...
 echo =========================================================
 start "" "%~dp0frontend\index.html"
+pause
