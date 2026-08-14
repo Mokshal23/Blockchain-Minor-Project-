@@ -62,6 +62,12 @@ window.addEventListener("DOMContentLoaded", async () => {
 async function connectMetaMask() {
     if (window.ethereum) {
         try {
+            // Force MetaMask to show Account Selector popup so user can pick Imported Account 1
+            await window.ethereum.request({
+                method: "wallet_requestPermissions",
+                params: [{ eth_accounts: {} }]
+            });
+
             provider = new ethers.BrowserProvider(window.ethereum);
             signer = await provider.getSigner();
             userAccount = await signer.getAddress();
@@ -71,8 +77,7 @@ async function connectMetaMask() {
             console.log("MetaMask Connected:", userAccount);
             loadCampaigns();
         } catch (err) {
-            console.error("User rejected wallet connection:", err);
-            alert("MetaMask connection request was cancelled.");
+            console.error("User cancelled account selection:", err);
         }
     } else {
         if (confirm("MetaMask extension is not installed in your browser!\n\nDo you want to install MetaMask to interact with Equity/Lending smart contracts?\n(Note: Donation & Reward campaigns work 100% without MetaMask!)")) {
@@ -80,6 +85,7 @@ async function connectMetaMask() {
         }
     }
 }
+
 
 function showTab(tabId) {
     document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
