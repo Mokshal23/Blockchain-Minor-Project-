@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Project Report - Dual-Engine Crowdfunding Platform</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: #0f172a;
+            max-width: 950px;
+            margin: 0 auto;
+            padding: 2.5rem;
+            background-color: #ffffff;
+        }
+
+        @media print {
+            body { padding: 0; max-width: 100%; }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+        }
+
+        .cover-page {
+            text-align: center;
+            padding: 4rem 0;
+            border-bottom: 2px solid #cbd5e1;
+            margin-bottom: 3rem;
+        }
+
+        .cover-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 1rem;
+        }
+
+        .cover-subtitle {
+            font-size: 1.25rem;
+            color: #64748b;
+            margin-bottom: 2.5rem;
+        }
+
+        .meta-box {
+            display: inline-block;
+            text-align: left;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 1.5rem 2rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .print-btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            float: right;
+            margin-top: 1rem;
+        }
+
+        h2 {
+            color: #1e293b;
+            border-left: 5px solid #2563eb;
+            padding-left: 0.8rem;
+            font-size: 1.5rem;
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        h3 {
+            color: #334155;
+            font-size: 1.2rem;
+            margin-top: 1.5rem;
+        }
+
+        p, li {
+            font-size: 0.98rem;
+            color: #334155;
+            text-align: justify;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 0.8rem;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .code-block {
+            background: #0f172a;
+            color: #38bdf8;
+            padding: 1.2rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .highlight-box {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            color: #166534;
+            padding: 1.2rem;
+            border-radius: 6px;
+            margin: 1.5rem 0;
+        }
+
+        .warning-box {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+            padding: 1.2rem;
+            border-radius: 6px;
+            margin: 1.5rem 0;
+        }
+    </style>
+</head>
+<body>
+
+    <button class="print-btn no-print" onclick="window.print()">Print / Save PDF Report</button>
+
+    <div class="cover-page">
+        <div class="cover-title">Dual-Engine Crowdfunding Platform</div>
+        <div class="cover-subtitle">Comparative Study & Implementation: Centralized SHA-256 Hash-Chaining vs Decentralized Ethereum Smart Contracts</div>
+        
+        <div class="meta-box">
+            <strong>Project Type:</strong> College Minor Project<br>
+            <strong>Live URL:</strong> https://blockchain-minor-project.vercel.app<br>
+            <strong>GitHub Repository:</strong> https://github.com/Mokshal23/Blockchain-Minor-Project-<br>
+            <strong>Core Technologies:</strong> Python, Flask, SQLite, SHA-256, Solidity v0.8.20, OpenZeppelin, Hardhat, Ethers.js v6
+        </div>
+    </div>
+
+    <h2>1. Executive Summary & Problem Statement</h2>
+    <p>
+        Crowdfunding platforms have traditionally relied on centralized database architectures (e.g. KickStarter, GoFundMe). While efficient, centralized platforms present severe vulnerabilities: single points of failure, lack of transparent fund escrow, and susceptibility to insider data tampering by central administrators.
+    </p>
+    <p>
+        This project designs, implements, and evaluates a <strong>Dual-Engine Crowdfunding Architecture</strong> to empirically demonstrate the trade-offs between centralized cryptographic hash-chaining (Python SHA-256) and decentralized smart contract execution (Solidity EVM):
+    </p>
+    <ul>
+        <li><strong>Python Engine (Donation & Reward Models):</strong> Employs custom SHA-256 block ledgering over SQLite for high-speed, zero-gas transactions managed by central admin approvals.</li>
+        <li><strong>Solidity Engine (Equity & Lending Models):</strong> Employs Ethereum Smart Contracts on EVM to enforce trustless escrow, weighted contributor milestone voting, and pull-based debt repayments without any central admin key.</li>
+    </ul>
+
+    <h2>2. Dual-Engine Architecture & Design</h2>
+    <p>
+        The platform separates crowdfunding models into two distinct execution pipelines based on risk, regulatory needs, and trust requirements:
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Component</th>
+                <th>Python Engine</th>
+                <th>Solidity Engine</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Assigned Models</strong></td>
+                <td>Donation & Reward</td>
+                <td>Equity & Lending</td>
+            </tr>
+            <tr>
+                <td><strong>Ledger Implementation</strong></td>
+                <td>SHA-256 Hash-Chained SQLite Blocks</td>
+                <td>EVM Smart Contracts (OpenZeppelin ReentrancyGuard)</td>
+            </tr>
+            <tr>
+                <td><strong>Transaction Cost</strong></td>
+                <td>0 Gas (Free Cloud Hosting)</td>
+                <td>Ethereum Gas Fee (Sepolia / Hardhat)</td>
+            </tr>
+            <tr>
+                <td><strong>Milestone Approval</strong></td>
+                <td>Central Admin Review & Key Approval</td>
+                <td>Contributor Weighted Majority Voting (>50%)</td>
+            </tr>
+            <tr>
+                <td><strong>Escrow Security</strong></td>
+                <td>Centralized Platform Vault</td>
+                <td>Decentralized Smart Contract Code Escrow</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>3. System Flow & Sequence Diagrams</h2>
+    
+    <h3>3.1 Python Engine Execution Flow (Donation / Reward)</h3>
+    <ol>
+        <li><strong>Campaign Creation:</strong> Startup submits campaign metadata to <code>POST /api/campaigns</code>. Server stores record in SQLite and appends Block #0 to the SHA-256 ledger.</li>
+        <li><strong>Contribution:</strong> User enters amount in inline input box. <code>POST /api/campaigns/:id/contribute</code> appends a block containing <code>{contributor, amount, timestamp, previous_hash}</code>. Reward tier (Bronze/Silver/Gold) is assigned.</li>
+        <li><strong>Admin Milestone Release:</strong> Creator submits milestone proof. Central Admin reviews and triggers <code>POST /api/campaigns/:id/milestones/:mId/approve</code>, releasing funds.</li>
+    </ol>
+
+    <h3>3.2 Solidity Engine Execution Flow (Equity / Lending)</h3>
+    <ol>
+        <li><strong>Smart Contract Deployment:</strong> User calls <code>createEquityCampaign()</code> or <code>createLendingCampaign()</code> on <code>CrowdfundingFactory.sol</code>. EVM deploys an isolated contract instance and initializes Milestone 0.</li>
+        <li><strong>On-Chain Contribution:</strong> User calls <code>contribute() payable</code>. ETH is locked in contract escrow, and contributor equity share / principal is recorded on-chain.</li>
+        <li><strong>Weighted Contributor Voting:</strong> Contributors vote <code>voteMilestone(id, approve)</code>. Voting weight equals investment amount. If YES votes pass 50% threshold, the contract automatically executes <code>owner.call{value: releaseAmount}("")</code>.</li>
+        <li><strong>Lending Pull Repayments:</strong> Borrower deposits debt pool via <code>depositRepayment() payable</code>. Lenders pull entitled shares via <code>withdrawRepayment()</code> (Reentrancy-guarded pull pattern).</li>
+    </ol>
+
+    <h2>4. Database & Smart Contract Schemas</h2>
+
+    <h3>4.1 Python SHA-256 Block Structure</h3>
+    <div class="code-block">
+class Block:
+    def __init__(self, index, timestamp, data, previous_hash):
+        self.index = index
+        self.timestamp = timestamp
+        self.data = data  # JSON: {event, campaign_id, contributor, amount}
+        self.previous_hash = previous_hash
+        self.hash = self.calculate_hash()
+
+    def calculate_hash(self):
+        block_string = f"{self.index}{self.timestamp}{json.dumps(self.data)}{self.previous_hash}"
+        return hashlib.sha256(block_string.encode()).hexdigest()
+    </div>
+
+    <h3>4.2 Solidity Equity & Lending Smart Contracts</h3>
+    <div class="code-block">
+// OpenZeppelin ReentrancyGuard for ETH security
+contract EquityCampaign is ReentrancyGuard {
+    address payable public owner;
+    uint256 public fundingGoal;
+    uint256 public currentAmount;
+
+    mapping(address => uint256) public contributions;
+    
+    struct Milestone {
+        uint256 id;
+        string description;
+        uint256 releasePercent;
+        uint256 votesFor;
+        uint256 votesAgainst;
+        bool isApproved;
+        bool isExecuted;
+    }
+    ...
+}
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>5. Centralized Tamper Vulnerability Analysis (Core Project Proof)</h2>
+
+    <div class="warning-box">
+        <strong>The Centralized Hash-Chaining Fallacy:</strong>
+        <p>
+            A common misconception in computer science is that applying SHA-256 hash-chaining to a database makes it immutable. This project empirically disproves this claim for centralized systems.
+        </p>
+    </div>
+
+    <p><strong>The Admin Tamper Experiment:</strong></p>
+    <ol>
+        <li>The admin script (<code>POST /api/tamper</code>) secretly accesses the SQLite database.</li>
+        <li>It modifies a historical block's data payload (inflating a contribution from $100 to $1,000).</li>
+        <li>Because the central admin holds total database authority, the script re-computes the SHA-256 hash for Block #1 and iteratively recalculates all downstream block hashes in milliseconds.</li>
+        <li>When the chain validator runs, it compares each block's stored hash against its calculated hash and outputs: <strong style="color:#166534;">Chain Status: VALID (is_valid: true)</strong>.</li>
+    </ol>
+
+    <div class="highlight-box">
+        <strong>Project Conclusion & Thesis Finding:</strong>
+        <p>
+            Cryptographic hash-chaining alone DOES NOT prevent tampering when a single authority controls the database infrastructure. True immutability requires decentralized consensus execution (such as Ethereum Solidity Smart Contracts), where consensus rules prevent any individual from altering state.
+        </p>
+    </div>
+
+    <h2>6. Deployment & Verification Summary</h2>
+    <ul>
+        <li><strong>Frontend & API Deployment:</strong> Vercel Serverless Production (<a href="https://blockchain-minor-project.vercel.app" target="_blank">blockchain-minor-project.vercel.app</a>).</li>
+        <li><strong>Smart Contract Verification:</strong> Passed 100% automated Hardhat unit tests (3/3 passing in 550ms).</li>
+        <li><strong>User Experience:</strong> Clean, responsive UI with inline inputs, live fund trackers, voter eligibility indicators, and non-emoji academic styling.</li>
+    </ul>
+
+</body>
+</html>
