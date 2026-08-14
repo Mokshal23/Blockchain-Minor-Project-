@@ -171,6 +171,12 @@ async function loadCampaigns() {
         console.warn("Python Flask API offline:", err);
     }
 
+    // Load hidden/deleted Solidity campaigns from localStorage
+    let deletedSolidityAddrs = [];
+    try {
+        deletedSolidityAddrs = JSON.parse(localStorage.getItem("deletedSolidityCampaigns") || "[]");
+    } catch (e) {}
+
     // 2. Fetch Solidity Campaigns from Web3 provider if available
     if (window.ethereum && factoryContractAddress) {
         try {
@@ -179,9 +185,12 @@ async function loadCampaigns() {
             const registry = await factory.getCampaignRegistry();
 
             for (let item of registry) {
+                if (deletedSolidityAddrs.includes(item.campaignAddress)) continue;
+
                 const cContract = new ethers.Contract(item.campaignAddress, CAMPAIGN_ABI, readProvider);
                 const goal = ethers.formatEther(await cContract.fundingGoal());
                 const raised = ethers.formatEther(await cContract.currentAmount());
+
 
                 let m0Info = null;
                 let userContribAmt = "0";
@@ -388,14 +397,11 @@ async function loadCampaigns() {
             `;
         }
 
-        let deleteBtnHtml = "";
-        if (c.engine === "Python") {
-            deleteBtnHtml = `
-                <button class="btn-delete" onclick="deleteCampaign(${c.id})">
-                    🗑️ Delete Campaign
-                </button>
-            `;
-        }
+        const deleteBtnHtml = `
+            <button class="btn-delete" onclick="deleteCampaign('${c.id}', '${c.engine}')">
+                🗑️ Delete Campaign
+            </button>
+        `;
 
         card.innerHTML = `
             <div class="card-header">
@@ -597,24 +603,40 @@ async function contributeInline(campaignId, engine) {
     }
 }
 
-async function deleteCampaign(campaignId) {
-    if (!confirm(`Are you sure you want to delete Campaign #${campaignId}?`)) return;
+async function deleteCampaign(campaignId, engine) {
+    if (!confirm(`Are you sure you want to delete this campaign?`)) return;
 
-    try {
-        const resp = await fetch(`${PYTHON_API_URL}/campaigns/${campaignId}`, {
-            method: "DELETE"
-        });
+    if (engine === "Python") {
+        try {
+            const resp = await fetch(`${PYTHON_API_URL}/campaigns/${campaignId}`, {
+                method: "DELETE"
+            });
 
-        if (resp.ok) {
-            alert("Campaign deleted successfully.");
-            loadCampaigns();
-        } else {
-            alert("Failed to delete campaign.");
+            if (resp.ok) {
+                alert("Campaign deleted successfully from Python database.");
+                loadCampaigns();
+            } else {
+                alert("Failed to delete campaign.");
+            }
+        } catch (err) {
+            alert("Error connecting to Python backend.");
         }
-    } catch (err) {
-        alert("Error connecting to Python backend.");
+    } else {
+        // Solidity Engine deletion: save to localStorage to hide from UI
+        try {
+            let deletedSolidity = JSON.parse(localStorage.getItem("deletedSolidityCampaigns") || "[]");
+            if (!deletedSolidity.includes(campaignId)) {
+                deletedSolidity.push(campaignId);
+                localStorage.setItem("deletedSolidityCampaigns", JSON.stringify(deletedSolidity));
+            }
+            alert("Campaign removed successfully.");
+            loadCampaigns();
+        } catch (e) {
+            alert("Could not remove campaign.");
+        }
     }
 }
+
 
 async function voteOnSolidityMilestone(contractAddress, milestoneId, approveBool) {
     if (!signer) {
