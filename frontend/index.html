@@ -37,23 +37,42 @@
         <!-- TAB 1: BROWSE CAMPAIGNS -->
         <!-- ================================================================= -->
         <section id="browseTab" class="tab-content active">
+            
+            <!-- Quick Engine Helper Cards -->
+            <div class="engine-guide-row">
+                <div class="guide-card guide-python">
+                    <div class="guide-header">
+                        <span class="badge badge-python">Python Engine</span>
+                        <h4>Donation & Reward Models</h4>
+                    </div>
+                    <p>Runs on Python SHA-256 Ledger + SQLite DB. Fast, free (0 Gas), centralized admin milestone approvals. Works 100% in cloud!</p>
+                </div>
+                
+                <div class="guide-card guide-solidity">
+                    <div class="guide-header">
+                        <span class="badge badge-solidity">Solidity Engine</span>
+                        <h4>Equity & Lending Models</h4>
+                    </div>
+                    <p>Runs on Ethereum Smart Contracts. Uses MetaMask & contributor voting (weighted by investment amount) for milestone fund releases.</p>
+                </div>
+            </div>
+
             <div class="section-header">
                 <h2>Active Campaigns</h2>
                 <div class="filter-group">
                     <label>Filter by Model: </label>
                     <select id="modelFilter" onchange="loadCampaigns()">
                         <option value="ALL">All Models</option>
-                        <option value="Donation">Donation (Python)</option>
-                        <option value="Reward">Reward (Python)</option>
-                        <option value="Equity">Equity (Solidity)</option>
-                        <option value="Lending">Lending (Solidity)</option>
+                        <option value="Donation">Donation (Python Engine)</option>
+                        <option value="Reward">Reward (Python Engine)</option>
+                        <option value="Equity">Equity (Solidity Engine)</option>
+                        <option value="Lending">Lending (Solidity Engine)</option>
                     </select>
                 </div>
             </div>
             
             <div id="campaignListGrid" class="grid-container">
-                <!-- Dynamic Campaign Cards will be loaded here by app.js -->
-                <p class="loading-text">Loading campaigns...</p>
+                <p class="loading-text">Loading campaigns from both engines...</p>
             </div>
         </section>
 
@@ -62,17 +81,17 @@
         <!-- ================================================================= -->
         <section id="createTab" class="tab-content">
             <h2>Start a New Campaign</h2>
-            <p class="note">Choosing a funding model automatically assigns the underlying Engine.</p>
+            <p class="note">Choosing a funding model automatically routes the campaign to its assigned Engine.</p>
 
             <form id="createCampaignForm" onsubmit="handleCreateCampaign(event)">
                 <div class="form-group">
                     <label>Campaign Title:</label>
-                    <input type="text" id="campTitle" placeholder="e.g. Green Energy Solar Farm" required>
+                    <input type="text" id="campTitle" placeholder="e.g. GreenTech Solar Farm" required>
                 </div>
 
                 <div class="form-group">
                     <label>Description:</label>
-                    <textarea id="campDescription" rows="3" placeholder="Explain your startup goal..." required></textarea>
+                    <textarea id="campDescription" rows="3" placeholder="Explain your project goals and startup vision..." required></textarea>
                 </div>
 
                 <div class="form-group">
@@ -86,7 +105,7 @@
                 </div>
 
                 <div id="engineNoticeBox" class="info-box python-box">
-                    <strong>Engine Notice:</strong> Donation & Reward campaigns run on the <span>Python Engine</span> (SHA-256 Ledger + Admin Approval).
+                    <strong>Engine Notice:</strong> Donation & Reward campaigns run on the <span>Python Engine</span> (SHA-256 Ledger + Admin Approval). Works 100% in cloud!
                 </div>
 
                 <div class="form-row">
@@ -103,7 +122,7 @@
 
                 <div class="form-group">
                     <label>Milestone 1 Description:</label>
-                    <input type="text" id="milestone1Desc" value="Initial Prototype & Development (50% Funds)" required>
+                    <input type="text" id="milestone1Desc" value="Milestone 1: Prototype & Initial Setup (50% Funds)" required>
                 </div>
 
                 <button type="submit" class="btn-primary">Launch Campaign</button>
@@ -122,9 +141,9 @@
                 <div class="card">
                     <h3>Pending Admin Milestone Approvals</h3>
                     <div id="adminMilestoneList">
-                        <p>Click "Check Pending Approvals" to load.</p>
+                        <p>Click "Refresh Pending List" to check.</p>
                     </div>
-                    <button onclick="loadAdminMilestones()" class="btn-secondary">Refresh Pending List</button>
+                    <button onclick="loadAdminMilestones()" class="btn-secondary" style="margin-top:1rem;">Refresh Pending List</button>
                 </div>
 
                 <!-- Right Column: Blockchain Status & Tamper Demo -->

@@ -34,7 +34,9 @@ const CAMPAIGN_ABI = [
     "function contribute() payable",
     "function voteMilestone(uint256 _milestoneId, bool _approve)",
     "function milestones(uint256) view returns (uint256 id, string description, uint256 releasePercent, uint256 votesFor, uint256 votesAgainst, bool isApproved, bool isExecuted)",
-    "function getMilestoneCount() view returns (uint256)"
+    "function getMilestoneCount() view returns (uint256)",
+    "function depositRepayment() payable",
+    "function withdrawRepayment()"
 ];
 
 // =============================================================================
@@ -42,7 +44,6 @@ const CAMPAIGN_ABI = [
 // =============================================================================
 
 window.addEventListener("DOMContentLoaded", async () => {
-    // Try loading deployed contract configuration if available
     try {
         const resp = await fetch("contract_address.json");
         if (resp.ok) {
@@ -62,7 +63,6 @@ window.addEventListener("DOMContentLoaded", async () => {
 async function connectMetaMask() {
     if (window.ethereum) {
         try {
-            // Force MetaMask to show Account Selector popup so user can pick Imported Account 1
             await window.ethereum.request({
                 method: "wallet_requestPermissions",
                 params: [{ eth_accounts: {} }]
@@ -85,7 +85,6 @@ async function connectMetaMask() {
         }
     }
 }
-
 
 function showTab(tabId) {
     document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
@@ -124,7 +123,6 @@ function updateEngineNotice() {
 
 async function loadCampaigns() {
     const grid = document.getElementById("campaignListGrid");
-
     let campaigns = [];
 
     // 1. Fetch Python Campaigns from REST API (Works on Vercel)
@@ -150,6 +148,26 @@ async function loadCampaigns() {
                 const goal = ethers.formatEther(await cContract.fundingGoal());
                 const raised = ethers.formatEther(await cContract.currentAmount());
 
+                // Read Milestone 0
+                let m0Info = null;
+                try {
+                    const mCount = await cContract.getMilestoneCount();
+                    if (mCount > 0n) {
+                        const mData = await cContract.milestones(0);
+                        m0Info = {
+                            id: 0,
+                            description: mData.description,
+                            releasePercent: Number(mData.releasePercent),
+                            votesFor: ethers.formatEther(mData.votesFor),
+                            votesAgainst: ethers.formatEther(mData.votesAgainst),
+                            isApproved: mData.isApproved,
+                            isExecuted: mData.isExecuted
+                        };
+                    }
+                } catch (e) {
+                    console.log("Could not read contract milestone");
+                }
+
                 campaigns.push({
                     id: item.campaignAddress,
                     title: item.title,
@@ -159,12 +177,12 @@ async function loadCampaigns() {
                     engine: "Solidity",
                     funding_goal: parseFloat(goal),
                     current_amount: parseFloat(raised),
-                    contract_address: item.campaignAddress
+                    contract_address: item.campaignAddress,
+                    milestone0: m0Info
                 });
             }
         } catch (err) {
-            // Silently handle if Web3 node is not connected to avoid scary popups
-            console.log("Solidity network query skipped (node not connected).");
+            console.log("Solidity network query skipped.");
         }
     }
 
@@ -191,6 +209,69 @@ async function loadCampaigns() {
 
         const card = document.createElement("div");
         card.className = "card";
+
+        // Milestone voting box HTML for Solidity campaigns
+        let milestoneHtml = "";
+        if (c.engine === "Solidity" && c.milestone0) {
+            const m = c.milestone0;
+            const statusText = m.isExecuted 
+                ? "<span class='tag-green'>✅ Funds Auto-Released (Majority Approved)</span>" 
+                : m.isApproved ? "<span class='tag-green'> Approved (Executing Release...)</span>"
+                : "<span>⏳ Voting Active (Requires >50% Majority)</span>";
+
+            milestoneHtml = `
+                <div class="milestone-box">
+                    <h4>🗳️ Milestone 1 Voting Breakdown</h4>
+                    <div class="milestone-desc">${m.description}</div>
+                    <div style="font-size:0.8rem; margin-bottom:0.4rem;">
+                        Status: <strong>${statusText}</strong>
+                    </div>
+                    <div style="font-size:0.8rem; color:#64748b;">
+                        YES Votes: <strong>${m.votesFor} ETH</strong> | NO Votes: <strong>${m.votesAgainst} ETH</strong>
+                    </div>
+
+                    ${!m.isExecuted ? `
+                        <div class="vote-controls">
+                            <button class="btn-vote-yes" onclick="voteOnSolidityMilestone('${c.contract_address}', 0, true)">
+                                👍 Vote YES
+                            </button>
+                            <button class="btn-vote-no" onclick="voteOnSolidityMilestone('${c.contract_address}', 0, false)">
+                                👎 Vote NO
+                            </button>
+                        </div>
+                    ` : ""}
+                </div>
+            `;
+        }
+
+        // Extra controls for Lending model
+        let lendingControlsHtml = "";
+        if (c.funding_type === "Lending") {
+            lendingControlsHtml = `
+                <div style="display:flex; gap:0.5rem; margin-top:0.4rem;">
+                    <button class="btn-secondary" style="flex:1; font-size:0.8rem;" onclick="depositLendingRepayment('${c.contract_address}')">
+                        💰 Deposit Repayment
+                    </button>
+                    <button class="btn-secondary" style="flex:1; font-size:0.8rem;" onclick="withdrawLendingRepayment('${c.contract_address}')">
+                        💸 Pull Repayment
+                    </button>
+                </div>
+            `;
+        }
+
+        // Reward tier preview for Reward model
+        let rewardTierHtml = "";
+        if (c.funding_type === "Reward") {
+            rewardTierHtml = `
+                <div style="font-size:0.8rem; background:#eff6ff; padding:0.5rem; border-radius:4px; margin-top:0.6rem;">
+                    🎁 <strong>Reward Tiers:</strong><br>
+                    • &lt; $500: Bronze Tier 🥉<br>
+                    • $500 - $999: Silver Tier 🥈<br>
+                    • $1000+: Gold Tier 🥇
+                </div>
+            `;
+        }
+
         card.innerHTML = `
             <div class="card-header">
                 <h3>${c.title}</h3>
@@ -204,15 +285,14 @@ async function loadCampaigns() {
             </div>
             <p><strong>${c.current_amount}</strong> of ${c.funding_goal} ETH raised (${percent}%)</p>
 
+            ${rewardTierHtml}
+
             <button class="btn-primary" onclick="contributePrompt('${c.id}', '${c.engine}')">
                 Contribute to Campaign
             </button>
 
-            ${c.engine === "Solidity" ? `
-                <button class="btn-secondary" style="width:100%; margin-top:0.4rem;" onclick="voteOnSolidityMilestonePrompt('${c.contract_address}')">
-                    🗳️ Contributor Vote on Milestone
-                </button>
-            ` : ""}
+            ${milestoneHtml}
+            ${lendingControlsHtml}
         `;
         grid.appendChild(card);
     });
@@ -227,7 +307,7 @@ async function ensureHardhatNetwork() {
     try {
         await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x7a69' }], // 31337 hex = 0x7a69
+            params: [{ chainId: '0x7a69' }],
         });
         return true;
     } catch (switchError) {
@@ -264,7 +344,6 @@ async function handleCreateCampaign(e) {
     const m1Desc = document.getElementById("milestone1Desc").value;
 
     if (model === "Donation" || model === "Reward") {
-        // Python Engine Flow (Runs on Vercel Serverless)
         try {
             const resp = await fetch(`${PYTHON_API_URL}/campaigns`, {
                 method: "POST",
@@ -292,7 +371,6 @@ async function handleCreateCampaign(e) {
             alert("Error connecting to Python server.");
         }
     } else {
-        // Solidity Engine Flow
         if (!signer) {
             alert("Equity & Lending campaigns run on Solidity smart contracts.\n\nPlease click '🦊 Connect MetaMask' at top right first!");
             await connectMetaMask();
@@ -300,7 +378,6 @@ async function handleCreateCampaign(e) {
         }
 
         try {
-            // Auto switch network to Hardhat Localhost
             await ensureHardhatNetwork();
 
             provider = new ethers.BrowserProvider(window.ethereum);
@@ -309,8 +386,6 @@ async function handleCreateCampaign(e) {
             const factory = new ethers.Contract(factoryContractAddress, FACTORY_ABI, signer);
             let tx;
             const goalWei = ethers.parseEther(goal.toString());
-
-
 
             if (model === "Equity") {
                 tx = await factory.createEquityCampaign(title, description, goalWei, parseInt(duration));
@@ -356,7 +431,6 @@ async function contributePrompt(campaignId, engine) {
             alert("Failed to send contribution to Python backend.");
         }
     } else {
-        // Solidity Contribution
         if (!signer) {
             alert("Please connect MetaMask wallet first!");
             await connectMetaMask();
@@ -364,6 +438,10 @@ async function contributePrompt(campaignId, engine) {
         }
 
         try {
+            await ensureHardhatNetwork();
+            provider = new ethers.BrowserProvider(window.ethereum);
+            signer = await provider.getSigner();
+
             const cContract = new ethers.Contract(campaignId, CAMPAIGN_ABI, signer);
             const valWei = ethers.parseEther(amountStr);
 
@@ -380,24 +458,77 @@ async function contributePrompt(campaignId, engine) {
     }
 }
 
-async function voteOnSolidityMilestonePrompt(contractAddress) {
+async function voteOnSolidityMilestone(contractAddress, milestoneId, approveBool) {
     if (!signer) {
-        alert("Connect MetaMask wallet to vote on Smart Contract milestones!");
+        alert("Please click '🦊 Connect MetaMask' at top right to vote on smart contract milestones!");
         await connectMetaMask();
         if (!signer) return;
     }
 
-    const vote = confirm("Click OK to Vote YES (Approve Milestone & Release Funds), or Cancel to Vote NO.");
     try {
+        await ensureHardhatNetwork();
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+
         const cContract = new ethers.Contract(contractAddress, CAMPAIGN_ABI, signer);
-        const tx = await cContract.voteMilestone(0, vote);
-        alert("Submitting vote transaction... Please confirm in MetaMask.");
+        const tx = await cContract.voteMilestone(milestoneId, approveBool);
+        alert(`Submitting Vote (${approveBool ? 'YES 👍' : 'NO 👎'})... Please confirm in MetaMask.`);
         await tx.wait();
-        alert("Vote registered on-chain! If majority threshold was met, smart contract automatically released milestone funds!");
+
+        alert("Vote registered on-chain! If YES votes passed >50% majority threshold, milestone funds were automatically released!");
         loadCampaigns();
     } catch (err) {
-        console.error("Voting failed:", err);
-        alert("Voting failed. Make sure you are a contributor and haven't voted already!");
+        console.error("Voting error:", err);
+        alert("Voting failed. Make sure you have contributed to this campaign and haven't already voted!");
+    }
+}
+
+async function depositLendingRepayment(contractAddress) {
+    if (!signer) {
+        alert("Connect MetaMask to deposit borrower repayments!");
+        await connectMetaMask();
+        if (!signer) return;
+    }
+
+    const amountStr = prompt("Enter repayment deposit amount (in ETH):", "1.0");
+    if (!amountStr || isNaN(amountStr) || parseFloat(amountStr) <= 0) return;
+
+    try {
+        await ensureHardhatNetwork();
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+
+        const cContract = new ethers.Contract(contractAddress, CAMPAIGN_ABI, signer);
+        const tx = await cContract.depositRepayment({ value: ethers.parseEther(amountStr) });
+        alert("Depositing repayment to contract pool... Confirm in MetaMask.");
+        await tx.wait();
+        alert("Repayment deposited to Lending contract pool!");
+        loadCampaigns();
+    } catch (err) {
+        alert("Repayment deposit failed.");
+    }
+}
+
+async function withdrawLendingRepayment(contractAddress) {
+    if (!signer) {
+        alert("Connect MetaMask to pull lender repayments!");
+        await connectMetaMask();
+        if (!signer) return;
+    }
+
+    try {
+        await ensureHardhatNetwork();
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+
+        const cContract = new ethers.Contract(contractAddress, CAMPAIGN_ABI, signer);
+        const tx = await cContract.withdrawRepayment();
+        alert("Pulling lender repayment... Confirm in MetaMask.");
+        await tx.wait();
+        alert("Repayment pulled successfully to your wallet!");
+        loadCampaigns();
+    } catch (err) {
+        alert("Withdrawal failed. Make sure you are a lender and repayments are available.");
     }
 }
 

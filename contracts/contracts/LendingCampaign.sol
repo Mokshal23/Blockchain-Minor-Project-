@@ -67,6 +67,18 @@ contract LendingCampaign is ReentrancyGuard {
         deadline = block.timestamp + (_durationInDays * 1 days);
         interestRatePercent = _interestRatePercent;
         isClosed = false;
+
+        // Auto initialize Milestone 0 so lenders can vote immediately
+        milestones.push(Milestone({
+            id: 0,
+            description: "Milestone 1: Equipment Acquisition & Setup (50% Funds)",
+            releasePercent: 50,
+            votesFor: 0,
+            votesAgainst: 0,
+            isApproved: false,
+            isExecuted: false
+        }));
+        emit MilestoneCreated(0, "Milestone 1: Equipment Acquisition & Setup (50% Funds)", 50);
     }
 
     function addMilestone(string memory _description, uint256 _releasePercent) external {
@@ -157,14 +169,12 @@ contract LendingCampaign is ReentrancyGuard {
 
         uint256 principal = lenderPrincipal[msg.sender];
         
-        // Share of total repayment pool proportional to lender's contribution
         uint256 maxShareFromPool = (totalRepaidPool * principal) / currentAmount;
         uint256 alreadyWithdrawn = lenderWithdrawn[msg.sender];
 
         require(maxShareFromPool > alreadyWithdrawn, "No new repayments available to withdraw");
         uint256 claimable = maxShareFromPool - alreadyWithdrawn;
 
-        // State update before external call (Checks-Effects-Interactions Pattern)
         lenderWithdrawn[msg.sender] += claimable;
 
         (bool success, ) = msg.sender.call{value: claimable}("");

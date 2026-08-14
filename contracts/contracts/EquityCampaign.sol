@@ -66,10 +66,22 @@ contract EquityCampaign is ReentrancyGuard {
         fundingGoal = _fundingGoal;
         deadline = block.timestamp + (_durationInDays * 1 days);
         isClosed = false;
+
+        // Auto initialize Milestone 0 so voting is immediately ready for contributors
+        milestones.push(Milestone({
+            id: 0,
+            description: "Milestone 1: Prototype & Initial Setup (50% Funds)",
+            releasePercent: 50,
+            votesFor: 0,
+            votesAgainst: 0,
+            isApproved: false,
+            isExecuted: false
+        }));
+        emit MilestoneCreated(0, "Milestone 1: Prototype & Initial Setup (50% Funds)", 50);
     }
 
     /**
-     * @dev Allows campaign creator to add milestone breakdown (e.g. Milestone 1 = 50% funds)
+     * @dev Allows campaign creator to add milestone breakdown
      */
     function addMilestone(string memory _description, uint256 _releasePercent) external {
         require(msg.sender == owner, "Only campaign owner can add milestones");
@@ -127,7 +139,7 @@ contract EquityCampaign is ReentrancyGuard {
 
         emit VoteCast(msg.sender, _milestoneId, _approve, voteWeight);
 
-        // Check if votes exceed Majority Threshold (e.g. >50% of current raised funds voted YES)
+        // Check if YES votes exceed Majority Threshold (>50% of current raised funds voted YES)
         if (m.votesFor > (currentAmount / 2) && !m.isApproved) {
             m.isApproved = true;
             _executeMilestoneRelease(_milestoneId);

@@ -30,8 +30,7 @@ describe("Dual-Engine Solidity Crowdfunding Contracts", function () {
     const EquityCampaign = await ethers.getContractFactory("EquityCampaign");
     const equity = EquityCampaign.attach(campaignAddress);
 
-    // Add milestone
-    await equity.connect(owner).addMilestone("Milestone 1", 50);
+    // Constructor auto-creates Milestone 0
     expect(await equity.getMilestoneCount()).to.equal(1);
 
     // Contribute from addr1
@@ -39,8 +38,7 @@ describe("Dual-Engine Solidity Crowdfunding Contracts", function () {
     await equity.connect(addr1).contribute({ value: contrib });
     expect(await equity.currentAmount()).to.equal(contrib);
 
-    // Vote on milestone from addr1 (>50% raised funds voted YES -> should approve and release)
-    const initialBalance = await ethers.provider.getBalance(owner.address);
+    // Vote on milestone 0 from addr1 (>50% raised funds voted YES -> should approve and release)
     await equity.connect(addr1).voteMilestone(0, true);
 
     const milestone = await equity.milestones(0);

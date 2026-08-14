@@ -217,11 +217,15 @@ def create_campaign():
     campaign_id = cursor.lastrowid
 
     milestones = data.get("milestones", [])
+    if not milestones:
+        milestones = [{"description": "Milestone 1: Prototype & Initial Setup (50% Funds)", "target_percent": 50.0}]
+
     for m in milestones:
         cursor.execute("""
             INSERT INTO milestones (campaign_id, description, target_percent, status)
             VALUES (?, ?, ?, 'PENDING')
-        """, (campaign_id, m.get("description", "Milestone"), float(m.get("target_percent", 50.0))))
+        """, (campaign_id, m.get("description", "Milestone 1"), float(m.get("target_percent", 50.0))))
+
 
     conn.commit()
     conn.close()
