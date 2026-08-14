@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+backend/__pycache__/
+*.pyc
+
+# Database & SQLite files
+*.db
+backend/database.db
+
+# Hardhat build output & cache
+contracts/artifacts/
+contracts/cache/
+
+# Environment & Local files
+.env
+.DS_Store
+Thumbs.db

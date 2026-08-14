@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual-Engine Blockchain Crowdfunding Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Ethers.js CDN for Web3 & MetaMask Smart Contract Interaction -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"></script>
+</head>
+<body>
+
+    <!-- ================================================================= -->
+    <!-- HEADER & NAVIGATION -->
+    <!-- ================================================================= -->
+    <header class="navbar">
+        <div class="logo">
+            <h1>🌐 Dual-Engine Crowdfunding</h1>
+            <span class="subtitle">College Minor Project | Python SHA-256 vs Solidity Smart Contracts</span>
+        </div>
+        <div class="wallet-status">
+            <button id="connectWalletBtn" onclick="connectMetaMask()">🦊 Connect MetaMask</button>
+            <span id="walletAddressDisplay" class="wallet-addr">Wallet: Not Connected</span>
+        </div>
+    </header>
+
+    <nav class="tab-bar">
+        <button class="tab-btn active" onclick="showTab('browseTab')">📋 Browse Campaigns</button>
+        <button class="tab-btn" onclick="showTab('createTab')">➕ Create Campaign</button>
+        <button class="tab-btn" onclick="showTab('adminTab')">🛠️ Admin Panel (Python Engine)</button>
+        <button class="tab-btn" onclick="showTab('compareTab')">⚖️ Engine Comparison</button>
+    </nav>
+
+    <main class="container">
+
+        <!-- ================================================================= -->
+        <!-- TAB 1: BROWSE CAMPAIGNS -->
+        <!-- ================================================================= -->
+        <section id="browseTab" class="tab-content active">
+            <div class="section-header">
+                <h2>Active Campaigns</h2>
+                <div class="filter-group">
+                    <label>Filter by Model: </label>
+                    <select id="modelFilter" onchange="loadCampaigns()">
+                        <option value="ALL">All Models</option>
+                        <option value="Donation">Donation (Python)</option>
+                        <option value="Reward">Reward (Python)</option>
+                        <option value="Equity">Equity (Solidity)</option>
+                        <option value="Lending">Lending (Solidity)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="campaignListGrid" class="grid-container">
+                <!-- Dynamic Campaign Cards will be loaded here by app.js -->
+                <p class="loading-text">Loading campaigns...</p>
+            </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- TAB 2: CREATE CAMPAIGN -->
+        <!-- ================================================================= -->
+        <section id="createTab" class="tab-content">
+            <h2>Start a New Campaign</h2>
+            <p class="note">Choosing a funding model automatically assigns the underlying Engine.</p>
+
+            <form id="createCampaignForm" onsubmit="handleCreateCampaign(event)">
+                <div class="form-group">
+                    <label>Campaign Title:</label>
+                    <input type="text" id="campTitle" placeholder="e.g. Green Energy Solar Farm" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Description:</label>
+                    <textarea id="campDescription" rows="3" placeholder="Explain your startup goal..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Funding Model & Assigned Engine:</label>
+                    <select id="campModel" onchange="updateEngineNotice()" required>
+                        <option value="Donation">Donation Model (Python Engine - SHA-256 Ledger)</option>
+                        <option value="Reward">Reward Model (Python Engine - SHA-256 Ledger)</option>
+                        <option value="Equity">Equity Model (Solidity Engine - Ethereum Contract)</option>
+                        <option value="Lending">Lending Model (Solidity Engine - Ethereum Contract)</option>
+                    </select>
+                </div>
+
+                <div id="engineNoticeBox" class="info-box python-box">
+                    <strong>Engine Notice:</strong> Donation & Reward campaigns run on the <span>Python Engine</span> (SHA-256 Ledger + Admin Approval).
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Funding Goal (ETH / USD):</label>
+                        <input type="number" step="0.01" id="campGoal" placeholder="10.0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Duration (Days):</label>
+                        <input type="number" id="campDuration" value="30" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Milestone 1 Description:</label>
+                    <input type="text" id="milestone1Desc" value="Initial Prototype & Development (50% Funds)" required>
+                </div>
+
+                <button type="submit" class="btn-primary">Launch Campaign</button>
+            </form>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- TAB 3: ADMIN PANEL & PYTHON TAMPER DEMO -->
+        <!-- ================================================================= -->
+        <section id="adminTab" class="tab-content">
+            <h2>Python SHA-256 Ledger & Admin Panel</h2>
+            <p class="note">This panel demonstrates centralized admin approvals and the SHA-256 ledger tamper capability.</p>
+
+            <div class="admin-grid">
+                <!-- Left Column: Pending Milestones for Admin Approval -->
+                <div class="card">
+                    <h3>Pending Admin Milestone Approvals</h3>
+                    <div id="adminMilestoneList">
+                        <p>Click "Check Pending Approvals" to load.</p>
+                    </div>
+                    <button onclick="loadAdminMilestones()" class="btn-secondary">Refresh Pending List</button>
+                </div>
+
+                <!-- Right Column: Blockchain Status & Tamper Demo -->
+                <div class="card">
+                    <h3>SHA-256 Blockchain Status</h3>
+                    <div id="chainValidationStatus" class="status-badge valid">
+                        Chain Status: VALID
+                    </div>
+                    <p id="chainValidationMsg">Checking ledger continuity...</p>
+
+                    <div class="tamper-action-box">
+                        <h4>Admin Tamper Demonstration</h4>
+                        <p>Simulates a central admin altering a historical block in SQLite and recalculating downstream hashes.</p>
+                        <button onclick="triggerAdminTamper()" class="btn-danger">⚠️ Run Admin Tamper Script</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full Blockchain Ledger Display -->
+            <div class="card margin-top">
+                <h3>Python SHA-256 Ledger Blocks</h3>
+                <div id="blockchainViewer" class="code-viewer">
+                    <p>Loading ledger blocks...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- TAB 4: ENGINE COMPARISON (PRESENTATION DASHBOARD) -->
+        <!-- ================================================================= -->
+        <section id="compareTab" class="tab-content">
+            <h2>Side-by-Side Engine Comparison</h2>
+            <p class="note">Comparison between Centralized Hash-Chaining (Python) and Decentralized Smart Contracts (Solidity).</p>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Feature / Metric</th>
+                        <th>Python Engine (Donation & Reward)</th>
+                        <th>Solidity Engine (Equity & Lending)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Ledger Architecture</strong></td>
+                        <td>Custom SHA-256 Hash-Chained SQLite Database</td>
+                        <td>Ethereum Hardhat Smart Contract EVM</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Authority / Control</strong></td>
+                        <td>Centralized (Single Platform Admin)</td>
+                        <td>Decentralized (No Admin Key - Contributor Voting)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Milestone Fund Release</strong></td>
+                        <td>Admin reviews evidence & clicks Approve</td>
+                        <td>Contributors vote weighted by contribution amount</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Immutability / Tamper Test</strong></td>
+                        <td><span class="tag-red">Fails Immutability:</span> Admin can rewrite DB & re-compute hashes silently</td>
+                        <td><span class="tag-green">Immutable:</span> Consensus rules prevent altering confirmed state</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Cost & Latency</strong></td>
+                        <td>Free (0 Gas), Near-instant (< 50ms)</td>
+                        <td>Gas cost required, Block confirmation latency</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Single Point of Failure</strong></td>
+                        <td>Server offline = Entire platform unusable</td>
+                        <td>Server offline = Smart Contract stays queryable via blockchain</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
