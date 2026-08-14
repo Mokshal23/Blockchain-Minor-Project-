@@ -216,6 +216,37 @@ async function loadCampaigns() {
 // 3. CREATE & FUND CAMPAIGN LOGIC
 // =============================================================================
 
+async function ensureHardhatNetwork() {
+    if (!window.ethereum) return false;
+    try {
+        await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x7a69' }], // 31337 hex = 0x7a69
+        });
+        return true;
+    } catch (switchError) {
+        if (switchError.code === 4902) {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [
+                        {
+                            chainId: '0x7a69',
+                            chainName: 'Hardhat Localhost',
+                            rpcUrls: ['http://127.0.0.1:8545'],
+                            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                        },
+                    ],
+                });
+                return true;
+            } catch (addError) {
+                return false;
+            }
+        }
+        return false;
+    }
+}
+
 async function handleCreateCampaign(e) {
     e.preventDefault();
 
@@ -263,16 +294,16 @@ async function handleCreateCampaign(e) {
         }
 
         try {
-            // Check network before sending transaction
-            const net = await provider.getNetwork();
-            if (net.chainId !== 31337n && net.chainId !== 1337n) {
-                alert("Network Mismatch:\nYour MetaMask is currently set to Sepolia or Mainnet.\n\nPlease switch your MetaMask network to 'Hardhat Localhost' (http://127.0.0.1:8545) at top left of MetaMask!");
-                return;
-            }
+            // Auto switch network to Hardhat Localhost
+            await ensureHardhatNetwork();
+
+            provider = new ethers.BrowserProvider(window.ethereum);
+            signer = await provider.getSigner();
 
             const factory = new ethers.Contract(factoryContractAddress, FACTORY_ABI, signer);
             let tx;
             const goalWei = ethers.parseEther(goal.toString());
+
 
 
             if (model === "Equity") {
