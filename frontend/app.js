@@ -2,8 +2,8 @@
  * =============================================================================
  * Dual-Engine Crowdfunding Platform - Frontend Logic (app.js)
  * =============================================================================
- * Connects the unified frontend UI to both:
- *   1. Python REST API (Flask at http://127.0.0.1:5000) for Donation & Reward models
+ * Optimized for Vercel Deployment & Local Testing:
+ *   1. Python REST API (/api) for Donation & Reward models (Works 24/7 on Vercel)
  *   2. MetaMask / Ethers.js for Solidity Smart Contracts (Equity & Lending models)
  * =============================================================================
  */
@@ -13,13 +13,11 @@ const PYTHON_API_URL = (window.location.hostname === "localhost" || window.locat
     ? "http://127.0.0.1:5000/api"
     : "/api";
 
-
-// Hardhat Localhost Contract Addresses & ABI (Default 1st Contract Address on Hardhat Node)
+// Default Hardhat / Sepolia Contract Address
 let factoryContractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 let userAccount = null;
 let provider = null;
 let signer = null;
-
 
 // Minimal Contract ABIs
 const FACTORY_ABI = [
@@ -49,11 +47,12 @@ window.addEventListener("DOMContentLoaded", async () => {
         const resp = await fetch("contract_address.json");
         if (resp.ok) {
             const config = await resp.json();
-            factoryContractAddress = config.factoryAddress;
-            console.log("Loaded Factory Contract Address:", factoryContractAddress);
+            if (config.factoryAddress) {
+                factoryContractAddress = config.factoryAddress;
+            }
         }
     } catch (e) {
-        console.warn("contract_address.json not found. Hardhat contracts must be deployed.");
+        console.log("Using default contract configuration.");
     }
 
     loadCampaigns();
@@ -70,28 +69,31 @@ async function connectMetaMask() {
             document.getElementById("connectWalletBtn").innerText = "🦊 Connected";
             document.getElementById("walletAddressDisplay").innerText = `Wallet: ${userAccount.slice(0,6)}...${userAccount.slice(-4)}`;
             console.log("MetaMask Connected:", userAccount);
+            loadCampaigns();
         } catch (err) {
             console.error("User rejected wallet connection:", err);
             alert("MetaMask connection request was cancelled.");
         }
     } else {
-        if (confirm("MetaMask extension is not installed in your browser!\n\nDo you want to open metamask.io to install it? (Note: Donation & Reward campaigns work without MetaMask!)")) {
+        if (confirm("MetaMask extension is not installed in your browser!\n\nDo you want to install MetaMask to interact with Equity/Lending smart contracts?\n(Note: Donation & Reward campaigns work 100% without MetaMask!)")) {
             window.open("https://metamask.io/download/", "_blank");
         }
     }
 }
-
 
 function showTab(tabId) {
     document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
     document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
 
     document.getElementById(tabId).classList.add("active");
-    event.target.classList.add("active");
+    if (event && event.target) {
+        event.target.classList.add("active");
+    }
 
     if (tabId === 'adminTab') {
         loadBlockchainLedger();
         checkBlockchainStatus();
+        loadAdminMilestones();
     }
 }
 
@@ -101,12 +103,12 @@ function updateEngineNotice() {
 
     if (model === "Donation" || model === "Reward") {
         box.className = "info-box python-box";
-        box.innerHTML = `<strong>Engine Notice:</strong> ${model} campaigns run on the <span>Python Engine</span> (SHA-256 Ledger + Admin Approval).`;
+        box.innerHTML = `<strong>Engine Notice:</strong> ${model} campaigns run on the <span>Python Engine</span> (SHA-256 Ledger + Admin Approval). Works 100% in cloud!`;
     } else {
         box.className = "info-box";
         box.style.background = "#fffbe6";
         box.style.borderLeft = "4px solid #f59e0b";
-        box.innerHTML = `<strong>Engine Notice:</strong> ${model} campaigns run on the <span>Solidity Engine</span> (Ethereum Smart Contract + Contributor Voting).`;
+        box.innerHTML = `<strong>Engine Notice:</strong> ${model} campaigns run on the <span>Solidity Engine</span> (Ethereum Smart Contract). Requires MetaMask connected to Sepolia or Hardhat.`;
     }
 }
 
@@ -116,11 +118,10 @@ function updateEngineNotice() {
 
 async function loadCampaigns() {
     const grid = document.getElementById("campaignListGrid");
-    grid.innerHTML = "<p>Loading campaigns from both engines...</p>";
 
     let campaigns = [];
 
-    // 1. Fetch Python Campaigns from Flask API
+    // 1. Fetch Python Campaigns from REST API (Works on Vercel)
     try {
         const resp = await fetch(`${PYTHON_API_URL}/campaigns`);
         if (resp.ok) {
@@ -128,11 +129,11 @@ async function loadCampaigns() {
             campaigns = campaigns.concat(pyCampaigns);
         }
     } catch (err) {
-        console.warn("Python Flask API backend is offline:", err);
+        console.warn("Python Flask API offline:", err);
     }
 
-    // 2. Fetch Solidity Campaigns from Hardhat via Ethers.js
-    if (factoryContractAddress && window.ethereum) {
+    // 2. Fetch Solidity Campaigns from Web3 provider if available
+    if (window.ethereum && factoryContractAddress) {
         try {
             const readProvider = new ethers.BrowserProvider(window.ethereum);
             const factory = new ethers.Contract(factoryContractAddress, FACTORY_ABI, readProvider);
@@ -156,7 +157,8 @@ async function loadCampaigns() {
                 });
             }
         } catch (err) {
-            console.warn("Could not fetch Solidity campaigns from Hardhat network:", err);
+            // Silently handle if Web3 node is not connected to avoid scary popups
+            console.log("Solidity network query skipped (node not connected).");
         }
     }
 
@@ -167,7 +169,12 @@ async function loadCampaigns() {
     }
 
     if (campaigns.length === 0) {
-        grid.innerHTML = "<p>No campaigns found. Launch a new campaign in the 'Create Campaign' tab!</p>";
+        grid.innerHTML = `
+            <div class="card" style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
+                <h3>No active ${filter === 'ALL' ? '' : filter} campaigns found</h3>
+                <p>Launch your first campaign in the <strong>Create Campaign</strong> tab above!</p>
+            </div>
+        `;
         return;
     }
 
@@ -220,7 +227,7 @@ async function handleCreateCampaign(e) {
     const m1Desc = document.getElementById("milestone1Desc").value;
 
     if (model === "Donation" || model === "Reward") {
-        // Python Engine Flow
+        // Python Engine Flow (Runs on Vercel Serverless)
         try {
             const resp = await fetch(`${PYTHON_API_URL}/campaigns`, {
                 method: "POST",
@@ -241,21 +248,18 @@ async function handleCreateCampaign(e) {
                 document.getElementById("createCampaignForm").reset();
                 showTab("browseTab");
                 loadCampaigns();
+            } else {
+                alert("Failed to create campaign.");
             }
         } catch (err) {
-            alert("Error connecting to Python Flask server. Ensure app.py is running!");
+            alert("Error connecting to Python server.");
         }
     } else {
         // Solidity Engine Flow
         if (!signer) {
-            alert("Please connect your MetaMask wallet first!");
+            alert("Equity & Lending campaigns run on Solidity smart contracts.\n\nPlease click '🦊 Connect MetaMask' at top right first!");
             await connectMetaMask();
             if (!signer) return;
-        }
-
-        if (!factoryContractAddress) {
-            alert("Hardhat factory contract not deployed! Run 'npx hardhat run scripts/deploy.js --network localhost' inside contracts/ folder.");
-            return;
         }
 
         try {
@@ -266,20 +270,19 @@ async function handleCreateCampaign(e) {
             if (model === "Equity") {
                 tx = await factory.createEquityCampaign(title, description, goalWei, parseInt(duration));
             } else {
-                // Lending model (with 5% interest rate default)
                 tx = await factory.createLendingCampaign(title, description, goalWei, parseInt(duration), 5);
             }
 
-            alert("Sending transaction to Ethereum testnet... Please confirm in MetaMask.");
+            alert("Sending transaction to Ethereum network... Please confirm in MetaMask.");
             await tx.wait();
-            alert(`Success! Deployed ${model} Smart Contract on Ethereum testnet!`);
+            alert(`Success! Deployed ${model} Smart Contract on Ethereum blockchain!`);
 
             document.getElementById("createCampaignForm").reset();
             showTab("browseTab");
             loadCampaigns();
         } catch (err) {
             console.error("Solidity deployment error:", err);
-            alert("Transaction failed or rejected by user.");
+            alert("Smart contract transaction failed or was cancelled in MetaMask.");
         }
     }
 }
@@ -359,6 +362,7 @@ async function voteOnSolidityMilestonePrompt(contractAddress) {
 
 async function loadAdminMilestones() {
     const list = document.getElementById("adminMilestoneList");
+    if (!list) return;
     list.innerHTML = "<p>Loading pending milestones...</p>";
 
     try {
@@ -390,7 +394,7 @@ async function loadAdminMilestones() {
         }
 
         if (list.children.length === 0) {
-            list.innerHTML = "<p>No pending milestones found.</p>";
+            list.innerHTML = "<p>No pending milestones found. Create a Donation/Reward campaign first!</p>";
         }
     } catch (err) {
         list.innerHTML = "<p style='color:red;'>Could not fetch milestones from Python backend.</p>";
@@ -417,6 +421,8 @@ async function checkBlockchainStatus() {
     const badge = document.getElementById("chainValidationStatus");
     const msg = document.getElementById("chainValidationMsg");
 
+    if (!badge || !msg) return;
+
     try {
         const resp = await fetch(`${PYTHON_API_URL}/blockchain/validate`);
         if (resp.ok) {
@@ -434,12 +440,14 @@ async function checkBlockchainStatus() {
     } catch (err) {
         badge.className = "status-badge tampered";
         badge.innerText = "Python API Server Offline";
-        msg.innerText = "Could not connect to Flask server at http://127.0.0.1:5000";
+        msg.innerText = "Could not connect to Python API server.";
     }
 }
 
 async function loadBlockchainLedger() {
     const viewer = document.getElementById("blockchainViewer");
+    if (!viewer) return;
+
     try {
         const resp = await fetch(`${PYTHON_API_URL}/blockchain`);
         if (resp.ok) {
